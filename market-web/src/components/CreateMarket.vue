@@ -1,0 +1,891 @@
+<template>
+  <div class="create-market-container">
+    <div class="create-market-card">
+      <h1 class="page-title">Create New Prediction Market</h1>
+      <p class="page-subtitle">Stake tokens to create a prediction event. Once approved, staked tokens become liquidity source</p>
+
+      <form @submit.prevent="handleSubmit" class="market-form">
+        <!-- Market Title -->
+        <div class="form-group">
+          <label for="title">
+            <span class="label-text">Market Title</span>
+            <span class="required">*</span>
+          </label>
+          <input
+            id="title"
+            v-model="formData.title"
+            type="text"
+            placeholder="e.g., Will Bitcoin exceed $100,000 by December 31, 2024?"
+            class="form-input"
+            @blur="checkDuplicate"
+            required
+          />
+          <!-- Duplicate Warning -->
+          <div v-if="duplicateMarket" class="duplicate-warning">
+            <div class="warning-content">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="8" stroke="#F59E0B" stroke-width="2"/>
+                <path d="M10 6V10M10 14H10.01" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <div class="warning-text">
+                <div class="warning-title">
+                  {{ duplicateMarket.status === 'approved' ? 'Topic Already Exists' : 'Topic Under Review' }}
+                </div>
+                <div class="warning-desc">
+                  {{ duplicateMarket.status === 'approved'
+                    ? 'This topic has been approved and published. Cannot submit duplicate.'
+                    : 'This topic is currently in pre-review or final-review stage.' }}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              @click="goToMarket"
+              class="view-market-btn"
+            >
+              View Details →
+            </button>
+          </div>
+        </div>
+
+        <!-- Market Description -->
+        <div class="form-group">
+          <label for="description">
+            <span class="label-text">Detailed Description</span>
+            <span class="required">*</span>
+          </label>
+          <textarea
+            id="description"
+            v-model="formData.description"
+            placeholder="Please describe the background, judgment criteria and other details of the prediction event"
+            class="form-textarea"
+            rows="4"
+            required
+          ></textarea>
+          <p class="help-text">Ensure the description is clear, results are verifiable and have clear resolution criteria</p>
+        </div>
+
+        <!-- Category Selection -->
+        <div class="form-group">
+          <label for="category">
+            <span class="label-text">Category</span>
+            <span class="required">*</span>
+          </label>
+          <select id="category" v-model="formData.category" class="form-select" required>
+            <option value="">Select Category</option>
+            <option value="crypto">Crypto</option>
+            <option value="technology">Technology</option>
+            <option value="politics">Politics</option>
+            <option value="sports">Sports</option>
+            <option value="finance">Finance</option>
+            <option value="entertainment">Entertainment</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <!-- End Time -->
+        <div class="form-group">
+          <label for="endTime">
+            <span class="label-text">Market End Time</span>
+            <span class="required">*</span>
+          </label>
+          <input
+            id="endTime"
+            v-model="formData.endTime"
+            type="datetime-local"
+            class="form-input"
+            :min="minEndTime"
+            required
+          />
+          <p class="help-text">After this time, the market will stop trading and await resolution</p>
+        </div>
+
+        <!-- Initial Token Stake -->
+        <div class="form-group">
+          <label for="stakeAmount">
+            <span class="label-text">Initial Liquidity Stake</span>
+            <span class="required">*</span>
+          </label>
+          <div class="stake-input-wrapper">
+            <input
+              id="stakeAmount"
+              v-model.number="formData.stakeAmount"
+              type="number"
+              placeholder="1000"
+              class="form-input stake-input"
+              min="100"
+              step="100"
+              required
+            />
+            <span class="token-symbol">IMKT</span>
+          </div>
+          <p class="help-text">Minimum stake 100 IMKT. Higher stake increases chances of passing final review</p>
+          <div class="stake-tiers">
+            <div class="tier-info">
+              <span class="tier-label">Basic Stake:</span>
+              <span class="tier-value">100-999 IMKT</span>
+            </div>
+            <div class="tier-info">
+              <span class="tier-label">Priority Review:</span>
+              <span class="tier-value">≥1000 IMKT</span>
+            </div>
+            <div class="tier-info">
+              <span class="tier-label">Fast Track:</span>
+              <span class="tier-value">≥5000 IMKT</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resolution Method -->
+        <div class="form-group">
+          <label for="resolution">
+            <span class="label-text">Resolution Method</span>
+            <span class="required">*</span>
+          </label>
+          <textarea
+            id="resolution"
+            v-model="formData.resolutionSource"
+            placeholder="e.g., Based on Bitcoin price at CoinMarketCap on December 31, 2024 23:59:59 UTC"
+            class="form-textarea"
+            rows="3"
+            required
+          ></textarea>
+          <p class="help-text">Must provide verifiable, objective data source or judgment criteria</p>
+        </div>
+
+        <!-- AI Selection -->
+        <div class="form-group">
+          <label>
+            <span class="label-text">Select AI Models</span>
+            <span class="required">*</span>
+          </label>
+          <div class="ai-selection-info">
+            <p class="help-text">Select AI models to participate in market resolution. You must select an <strong>odd number</strong> of AI models.</p>
+          </div>
+          <div class="ai-grid">
+            <label v-for="ai in availableAI" :key="ai.value" class="ai-checkbox-label">
+              <input
+                type="checkbox"
+                :value="ai.value"
+                v-model="formData.selectedAI"
+                class="ai-checkbox"
+              />
+              <span class="ai-checkbox-custom"></span>
+              <span class="ai-name">{{ ai.label }}</span>
+            </label>
+          </div>
+          <div v-if="aiValidationError" class="validation-error">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="7" stroke="#EF4444" stroke-width="1.5"/>
+              <path d="M8 5V9M8 11H8.01" stroke="#EF4444" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <span>{{ aiValidationError }}</span>
+          </div>
+          <div v-if="formData.selectedAI.length > 0 && formData.selectedAI.length % 2 === 1" class="validation-success">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="7" stroke="#10B981" stroke-width="1.5"/>
+              <path d="M5 8L7 10L11 6" stroke="#10B981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>{{ formData.selectedAI.length }} AI model(s) selected - Valid odd number</span>
+          </div>
+        </div>
+
+        <!-- Tags -->
+        <div class="form-group">
+          <label for="tags">
+            <span class="label-text">Tags</span>
+          </label>
+          <input
+            id="tags"
+            v-model="tagInput"
+            type="text"
+            placeholder="Enter tag and press Enter to add"
+            class="form-input"
+            @keydown.enter.prevent="addTag"
+          />
+          <div v-if="formData.tags.length > 0" class="tags-list">
+            <span v-for="(tag, index) in formData.tags" :key="index" class="tag-item">
+              {{ tag }}
+              <button type="button" @click="removeTag(index)" class="tag-remove">×</button>
+            </span>
+          </div>
+        </div>
+
+        <!-- Information Box -->
+        <div class="info-box">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="10" r="8" stroke="#8B5CF6" stroke-width="2"/>
+            <path d="M10 7V11M10 14H10.01" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <div class="info-content">
+            <div class="info-title">Creator Benefits</div>
+            <ul class="info-list">
+              <li>Staked tokens become the base liquidity source for the market</li>
+              <li>As market admin, you are responsible for future event resolution</li>
+              <li>After market ends, you'll receive liquidity rewards (X% of trading fees)</li>
+              <li>If multiple applications for same topic, higher stake advances to final review</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Submit Buttons -->
+        <div class="form-actions">
+          <button type="button" @click="handleCancel" class="btn btn-secondary">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            :disabled="isSubmitting || duplicateMarket?.status === 'approved'"
+          >
+            {{ isSubmitting ? 'Submitting...' : 'Submit for Review' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</template>
+
+<script>
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { mockMarkets } from '../data/markets';
+
+export default {
+  name: 'CreateMarket',
+  setup() {
+    const router = useRouter();
+    const formData = ref({
+      title: '',
+      description: '',
+      category: '',
+      endTime: '',
+      stakeAmount: 1000,
+      resolutionSource: '',
+      tags: [],
+      selectedAI: []
+    });
+
+    // 可用的AI模型列表
+    const availableAI = [
+      { value: 'chatgpt', label: 'ChatGPT' },
+      { value: 'claude', label: 'Claude' },
+      { value: 'gemini', label: 'Gemini' },
+      { value: 'perplexity', label: 'Perplexity' },
+      { value: 'grok', label: 'Grok' },
+      { value: 'wenxin', label: '文心一言' },
+      { value: 'tongyi', label: '通义千问' },
+      { value: 'glm', label: '智谱清言（GLM）' },
+      { value: 'kimi', label: 'Kimi' },
+      { value: 'xunfei', label: '讯飞星火' }
+    ];
+
+    const tagInput = ref('');
+    const isSubmitting = ref(false);
+    const duplicateMarket = ref(null);
+    const allMarkets = ref([]);
+
+    // AI验证错误信息
+    const aiValidationError = computed(() => {
+      const selectedCount = formData.value.selectedAI.length;
+      if (selectedCount === 0) {
+        return 'Please select at least one AI model';
+      }
+      if (selectedCount % 2 === 0) {
+        return `You selected ${selectedCount} AI model(s). Please select an odd number (1, 3, 5, 7, 9)`;
+      }
+      return null;
+    });
+
+    // 获取最早结束时间（当前时间+24小时）
+    const minEndTime = computed(() => {
+      const now = new Date();
+      now.setHours(now.getHours() + 24);
+      return now.toISOString().slice(0, 16);
+    });
+
+    // 加载所有市场数据（包括待审核的）
+    onMounted(() => {
+      allMarkets.value = [...mockMarkets];
+      // 这里后续会从localStorage或API加载用户创建的市场
+      const userCreated = localStorage.getItem('userCreatedMarkets');
+      if (userCreated) {
+        allMarkets.value.push(...JSON.parse(userCreated));
+      }
+    });
+
+    // 检查重复话题
+    const checkDuplicate = () => {
+      if (!formData.value.title.trim()) {
+        duplicateMarket.value = null;
+        return;
+      }
+
+      // 简单相似度检查（后续可以优化为模糊匹配）
+      const duplicate = allMarkets.value.find(market => {
+        const title1 = market.title.toLowerCase().trim();
+        const title2 = formData.value.title.toLowerCase().trim();
+        return title1 === title2 || title1.includes(title2) || title2.includes(title1);
+      });
+
+      if (duplicate) {
+        duplicateMarket.value = {
+          id: duplicate.id,
+          status: duplicate.status || 'approved'
+        };
+      } else {
+        duplicateMarket.value = null;
+      }
+    };
+
+    // 跳转到重复的市场
+    const goToMarket = () => {
+      if (duplicateMarket.value) {
+        router.push(`/market/${duplicateMarket.value.id}`);
+      }
+    };
+
+    // 添加标签
+    const addTag = () => {
+      const tag = tagInput.value.trim();
+      if (tag && !formData.value.tags.includes(tag)) {
+        if (formData.value.tags.length < 5) {
+          formData.value.tags.push(tag);
+          tagInput.value = '';
+        }
+      }
+    };
+
+    // 移除标签
+    const removeTag = (index) => {
+      formData.value.tags.splice(index, 1);
+    };
+
+    // 提交表单
+    const handleSubmit = async () => {
+      if (isSubmitting.value) return;
+      if (duplicateMarket.value?.status === 'approved') {
+        alert('This topic already exists. Cannot submit duplicate.');
+        return;
+      }
+
+      // 验证AI选择
+      if (aiValidationError.value) {
+        alert(aiValidationError.value);
+        return;
+      }
+
+      isSubmitting.value = true;
+
+      try {
+        // 创建新市场对象
+        const newMarket = {
+          id: `market-${Date.now()}`,
+          title: formData.value.title,
+          description: formData.value.description,
+          category: formData.value.category,
+          endTime: new Date(formData.value.endTime).getTime(),
+          stakeAmount: formData.value.stakeAmount,
+          resolutionSource: formData.value.resolutionSource,
+          tags: formData.value.tags,
+          selectedAI: formData.value.selectedAI, // 添加选中的AI
+          creator: 'Current User', // 后续从钱包地址获取
+          createTime: Date.now(),
+          status: 'pending', // pending: 待审核, approved: 已通过, rejected: 已拒绝
+          stage: 'pre-review', // pre-review: 预审, final-review: 终审
+          currentProbability: 0.5,
+          volume: 0,
+          liquidity: formData.value.stakeAmount,
+          yesPrice: 0.5,
+          noPrice: 0.5
+        };
+
+        // 保存到localStorage（后续改为API调用）
+        const userCreated = JSON.parse(localStorage.getItem('userCreatedMarkets') || '[]');
+        userCreated.push(newMarket);
+        localStorage.setItem('userCreatedMarkets', JSON.stringify(userCreated));
+
+        alert('Prediction market created successfully! Submitted for pre-review, please wait for approval.');
+
+        // 重置表单
+        formData.value = {
+          title: '',
+          description: '',
+          category: '',
+          endTime: '',
+          stakeAmount: 1000,
+          resolutionSource: '',
+          tags: [],
+          selectedAI: []
+        };
+        duplicateMarket.value = null;
+
+        // 返回市场列表
+        router.push('/markets');
+
+      } catch (error) {
+        console.error('Failed to create market:', error);
+        alert('Failed to create. Please try again.');
+      } finally {
+        isSubmitting.value = false;
+      }
+    };
+
+    // 取消创建
+    const handleCancel = () => {
+      if (confirm('Are you sure you want to cancel? All entered data will be lost.')) {
+        router.push('/markets');
+      }
+    };
+
+    return {
+      formData,
+      tagInput,
+      isSubmitting,
+      duplicateMarket,
+      minEndTime,
+      availableAI,
+      aiValidationError,
+      checkDuplicate,
+      goToMarket,
+      addTag,
+      removeTag,
+      handleSubmit,
+      handleCancel
+    };
+  }
+};
+</script>
+
+<style scoped>
+.create-market-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.create-market-card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.page-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: var(--text-primary);
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0 0 32px 0;
+  line-height: 1.5;
+}
+
+.market-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.required {
+  color: #EF4444;
+  font-weight: 700;
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.help-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* 重复警告 */
+.duplicate-warning {
+  margin-top: 8px;
+  padding: 12px 16px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid #F59E0B;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.warning-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+}
+
+.warning-text {
+  flex: 1;
+}
+
+.warning-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #F59E0B;
+  margin-bottom: 4px;
+}
+
+.warning-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.view-market-btn {
+  padding: 6px 12px;
+  background: #F59E0B;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.view-market-btn:hover {
+  background: #D97706;
+}
+
+/* 质押输入 */
+.stake-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.stake-input {
+  padding-right: 80px !important;
+}
+
+.token-symbol {
+  position: absolute;
+  right: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.stake-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 12px;
+  background: rgba(99, 102, 241, 0.1);
+  border-radius: 8px;
+}
+
+.tier-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.tier-label {
+  color: var(--text-secondary);
+}
+
+.tier-value {
+  color: var(--accent-light);
+  font-weight: 600;
+}
+
+/* 标签 */
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tag-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--accent-light);
+  color: white;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tag-remove {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  transition: background 0.2s;
+}
+
+.tag-remove:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 信息框 */
+.info-box {
+  padding: 16px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid var(--accent-light);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+}
+
+/* AI选择 */
+.ai-selection-info {
+  margin-bottom: 12px;
+}
+
+.ai-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ai-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.ai-checkbox-label:hover {
+  background: rgba(99, 102, 241, 0.05);
+  border-color: var(--accent-light);
+}
+
+.ai-checkbox {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ai-checkbox-custom {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--input-bg);
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.ai-checkbox:checked + .ai-checkbox-custom {
+  background: var(--accent-light);
+  border-color: var(--accent-light);
+}
+
+.ai-checkbox:checked + .ai-checkbox-custom::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.ai-checkbox-label:has(.ai-checkbox:checked) {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--accent-light);
+}
+
+.ai-name {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.validation-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #EF4444;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #EF4444;
+  margin-top: 8px;
+}
+
+.validation-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid #10B981;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #10B981;
+  margin-top: 8px;
+}
+
+
+.info-content {
+  flex: 1;
+}
+
+.info-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-light);
+  margin-bottom: 8px;
+}
+
+.info-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.info-list li {
+  margin-bottom: 4px;
+}
+
+/* 按钮组 */
+.form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.btn {
+  flex: 1;
+  padding: 14px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background: var(--input-bg);
+  border-color: var(--text-secondary);
+}
+
+.btn-primary {
+  background: var(--accent-light);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #4F46E5;
+  transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .create-market-card {
+    padding: 24px;
+  }
+
+  .page-title {
+    font-size: 24px;
+  }
+
+  .ai-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .duplicate-warning {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .view-market-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+  }
+}
+</style>

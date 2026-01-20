@@ -1,0 +1,6 @@
+# web
+market-web/node_modules/
+
+# backend
+/market-backend/.idea/
+
