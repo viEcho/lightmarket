@@ -1,0 +1,38 @@
+# 服务端口
+server:
+  port: 9999
+  servlet:
+    context-path: /api
+spring:
+  application:
+    name: market-backend
+  profiles:
+    active: dev
+
+  # thymeleaf配置
+  thymeleaf:
+    check-template: false
+    encoding: UTF-8
+    cache: false
+
+  # redis配置
+  redis:
+    redisson:
+      file: classpath:redisson.yaml
+
+#mybatis-plus 配置
+mybatis-plus:
+  mapper-locations: classpath:mapper/*Mapper.xml
+  typeAliasesPackage: com.market.business.entity
+  defaultStatementTimeout: 120
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    call-setters-on-nulls: true
+    #在映射实体或者属性时，将数据库中表名和字段名中的下划线去掉，按照驼峰命名法映射 address_book ---> addressBook
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-value: 1 #删除
+      logic-delete-field: delete_flag # 逻辑删除字段名
+      logic-not-delete-value: 0 #未删除
+
