@@ -1,6 +1,6 @@
 node_modules/
 .claude/
-
+./market-backend/
 # Infura configuration with API keys
 INFURA_CONFIG.md
 
