@@ -102,12 +102,6 @@
             <groupId>com.alibaba</groupId>
             <artifactId>druid-spring-boot-3-starter</artifactId>
             <version>${druid.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-autoconfigure</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
