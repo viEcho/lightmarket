@@ -3,11 +3,13 @@ package com.market.business.global;
 import com.market.business.enums.ResponseCodeEnum;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 自定义全局异常
  */
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 @Schema(name = "全局异常")
 public class GlobalException extends RuntimeException{

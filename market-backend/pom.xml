@@ -33,7 +33,6 @@
         <lang3.version>3.18.0</lang3.version>
         <velocity.engine.core.version>2.3</velocity.engine.core.version>
         <validation.api.version>3.0.2</validation.api.version>
-        <swagger.bootstrap.ui.version>1.9.6</swagger.bootstrap.ui.version>
         <aspectj.version>1.9.22</aspectj.version>
         <annotation.version>2.1.1</annotation.version>
         <lombok.version>1.18.38</lombok.version>
@@ -183,6 +182,12 @@
             <artifactId>jakarta.servlet-api</artifactId>
             <version>6.0.0</version>
             <scope>provided</scope>
+        </dependency>
+        <!-- Web3j for Ethereum wallet signature verification -->
+        <dependency>
+            <groupId>org.web3j</groupId>
+            <artifactId>core</artifactId>
+            <version>4.12.0</version>
         </dependency>
     </dependencies>
 

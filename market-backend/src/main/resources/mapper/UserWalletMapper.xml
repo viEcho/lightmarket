@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.market.business.mapper.UserWalletMapper">
+  <resultMap id="BaseResultMap" type="com.market.business.entity.UserWallet">
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="user_id" jdbcType="BIGINT" property="userId" />
+    <result column="wallet_address" jdbcType="VARCHAR" property="walletAddress" />
+    <result column="chain_id" jdbcType="INTEGER" property="chainId" />
+    <result column="wallet_type" jdbcType="VARCHAR" property="walletType" />
+    <result column="is_primary" jdbcType="TINYINT" property="isPrimary" />
+    <result column="created_time" jdbcType="TIMESTAMP" property="createdTime" />
+    <result column="updated_time" jdbcType="TIMESTAMP" property="updatedTime" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, user_id, wallet_address, chain_id, wallet_type, is_primary, created_time, updated_time
+  </sql>
+</mapper>
