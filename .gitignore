@@ -1,5 +1,5 @@
 # web
-market-web/node_modules/
+/market-web/node_modules/
 
 # backend
 /market-backend/.idea/
