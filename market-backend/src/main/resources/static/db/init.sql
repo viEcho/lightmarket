@@ -29,7 +29,7 @@ CREATE TABLE `user_nonce` (
       `nonce` VARCHAR(64) NOT NULL COMMENT '随机Nonce，用于钱包签名',
       `expired_at` DATETIME NOT NULL COMMENT 'Nonce过期时间',
       `used` TINYINT DEFAULT 0 COMMENT '是否已使用：0-未使用，1-已使用',
-      `created_time` DATETIME NOT NULL COMMENT '创建时间',
+      `created_time` datetime(3) NOT NULL COMMENT '创建时间',
       KEY `idx_wallet_chain` (`wallet_address`, `chain_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='钱包签名Nonce表';
 
