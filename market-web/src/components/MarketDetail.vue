@@ -256,6 +256,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { mockMarkets } from '../data/markets';
+import { useUserStore } from '../stores/user';
 import PriceChart from './PriceChart.vue';
 import OrderBook from './OrderBook.vue';
 import RecentTrades from './RecentTrades.vue';
@@ -275,6 +276,7 @@ export default {
   },
   setup(props) {
     const router = useRouter();
+    const userStore = useUserStore();
     const market = ref(null);
     const selectedOption = ref(null);
     const tradeAmount = ref(null);
@@ -373,8 +375,24 @@ export default {
       }
     };
 
-    const selectOption = (option) => {
-      selectedOption.value = option;
+    const selectOption = async (option) => {
+      // Check if wallet is connected
+      if (!userStore.isConnected) {
+        const shouldConnect = confirm(
+          'You need to connect your wallet to trade. Would you like to connect your MetaMask wallet now?'
+        );
+
+        if (shouldConnect) {
+          const success = await userStore.connectWallet();
+          if (success) {
+            selectedOption.value = option;
+          } else {
+            alert('Failed to connect wallet. Please make sure MetaMask is installed and unlocked.');
+          }
+        }
+      } else {
+        selectedOption.value = option;
+      }
     };
 
     const calculateExpectedReturn = () => {

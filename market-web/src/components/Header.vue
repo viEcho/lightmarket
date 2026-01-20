@@ -49,18 +49,133 @@
           </svg>
           My markets
         </button>
-        <button class="btn-connect">
-          <span>Connect Wallet</span>
+
+        <!-- Wallet Connection Button -->
+        <button
+          v-if="!isConnected"
+          class="btn-connect"
+          @click="handleConnect"
+          :disabled="isLoading"
+        >
+          <span v-if="isLoading">Connecting...</span>
+          <span v-else>Connect Wallet</span>
         </button>
+
+        <!-- Connected Wallet Display -->
+        <div v-else class="user-section">
+          <button class="avatar-button" @click="toggleUserMenu">
+            <div class="user-avatar">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="10" fill="currentColor" fill-opacity="0.1"/>
+                <path d="M10 4C8.34315 4 7 5.34315 7 7C7 8.65685 8.34315 10 10 10C11.6569 10 13 8.65685 13 7C13 5.34315 11.6569 4 10 4Z" fill="currentColor"/>
+                <path d="M4 16C4 13.7909 5.79086 12 8 12H12C14.2091 12 16 13.7909 16 16V17H4V16Z" fill="currentColor"/>
+              </svg>
+            </div>
+          </button>
+
+          <!-- User Menu Popup -->
+          <div v-if="showUserMenu" class="user-menu-popup" @click.stop>
+            <div class="user-menu-header">
+              <div class="user-menu-avatar">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <circle cx="10" cy="10" r="10" fill="currentColor" fill-opacity="0.1"/>
+                  <path d="M10 4C8.34315 4 7 5.34315 7 7C7 8.65685 8.34315 10 10 10C11.6569 10 13 8.65685 13 7C13 5.34315 11.6569 4 10 4Z" fill="currentColor"/>
+                  <path d="M4 16C4 13.7909 5.79086 12 8 12H12C14.2091 12 16 13.7909 16 16V17H4V16Z" fill="currentColor"/>
+                </svg>
+              </div>
+            </div>
+            <div class="user-menu-content">
+              <div class="user-info-item">
+                <span class="user-info-label">钱包地址</span>
+                <span class="user-info-value user-address-full">{{ walletAddress }}</span>
+              </div>
+              <div class="user-info-item">
+                <span class="user-info-label">余额</span>
+                <div class="balance-wrapper">
+                  <span class="user-info-value">{{ parseFloat(balance).toFixed(6) }} ETH</span>
+                  <button class="refresh-btn" @click="handleRefreshBalance" title="刷新余额">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path d="M8 2V6M8 6L6 4M8 6L10 4M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="user-info-item">
+                <span class="user-info-label">网络</span>
+                <span class="user-info-value">{{ getNetworkName(chainId) }}</span>
+              </div>
+            </div>
+            <div class="user-menu-footer">
+              <button class="logout-btn" @click="handleDisconnect">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M6 3L2 8L6 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M14 8H2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                退出登录
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </header>
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useUserStore } from '../stores/user'
 
 const route = useRoute()
+const userStore = useUserStore()
+const showUserMenu = ref(false)
+
+const { isConnected, walletAddress, shortAddress, balance, chainId, isLoading } = userStore
+
+const handleConnect = async () => {
+  const success = await userStore.connectWallet()
+  if (!success) {
+    console.error('Failed to connect wallet')
+  }
+}
+
+const handleDisconnect = async () => {
+  await userStore.disconnectWallet()
+  showUserMenu.value = false
+}
+
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value
+}
+
+const handleRefreshBalance = async () => {
+  await userStore.updateUserBalance()
+}
+
+const getNetworkName = (chainId) => {
+  const networks = {
+    '1': 'Ethereum',
+    '5': 'Goerli',
+    '11155111': 'Sepolia',
+    '137': 'Polygon',
+    '80001': 'Mumbai',
+    '56': 'BSC',
+    '97': 'BSC Testnet'
+  }
+  return networks[chainId] || `Chain ${chainId}`
+}
+
+// Close dropdown when clicking outside
+onMounted(() => {
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.user-section')) {
+      showUserMenu.value = false
+    }
+  })
+
+  // Load saved wallet connection
+  userStore.loadUserFromStorage()
+})
 </script>
 
 <style scoped>
@@ -68,8 +183,10 @@ const route = useRoute()
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-color);
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
 }
 
@@ -188,5 +305,190 @@ const route = useRoute()
 
 .btn-connect:active {
   transform: translateY(0);
+}
+
+.btn-connect:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* User Section */
+.user-section {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.avatar-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.avatar-button:hover {
+  border-color: var(--accent-light);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.user-avatar {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+/* User Menu Popup */
+.user-menu-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 320px;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  overflow: hidden;
+  animation: slideIn 0.2s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.user-menu-header {
+  padding: 20px 24px;
+  background: var(--input-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-menu-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.user-menu-content {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.user-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.user-info-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.user-info-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.balance-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.refresh-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  transform: rotate(180deg);
+}
+
+.refresh-btn:active {
+  transform: rotate(180deg) scale(0.95);
+}
+
+.user-address-full {
+  font-size: 12px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  opacity: 0.8;
+}
+
+.user-menu-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+  background: var(--input-bg);
+}
+
+.logout-btn {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  color: #EF4444;
+  border: 1px solid #EF4444;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.logout-btn:hover {
+  background: #EF4444;
+  color: white;
+}
+
+.logout-btn:active {
+  transform: scale(0.98);
 }
 </style>

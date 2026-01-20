@@ -2,7 +2,9 @@
   <div class="app">
     <!-- 公共Header - 只在非admin页面显示 -->
     <Header v-if="!isAdminPage" />
-    <router-view />
+    <div class="app-content">
+      <router-view />
+    </div>
   </div>
 </template>
 
@@ -21,9 +23,16 @@ const isAdminPage = computed(() => {
 
 <style scoped>
 .app {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--bg-primary);
+}
+
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 </style>

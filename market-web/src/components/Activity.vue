@@ -1,10 +1,8 @@
 <template>
   <div class="activity-page">
     <div class="page-header">
-      <h1 class="page-title">Recent Activity</h1>
       <p class="page-subtitle">Live trading activity across all markets</p>
     </div>
-
     <div class="activity-filters">
       <button
         v-for="filter in filters"

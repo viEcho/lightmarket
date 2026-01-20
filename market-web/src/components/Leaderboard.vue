@@ -1,7 +1,6 @@
 <template>
   <div class="leaderboard-page">
     <div class="page-header">
-      <h1 class="page-title">Leaderboard</h1>
       <p class="page-subtitle">Top performing traders on iMarket</p>
     </div>
 

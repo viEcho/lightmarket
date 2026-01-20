@@ -36,7 +36,7 @@ public class MybatisGeneratorPlugin extends PluginAdapter {
      */
     public static void main(String[] args) {
         args = new String[]{"-configfile", System.getProperty("user.dir") + "/src/main/resources/mybatis-generator.xml", "-overwrite"};
-        ShellRunner.main(args);
+        // ShellRunner.main(args);
     }
 
     static {

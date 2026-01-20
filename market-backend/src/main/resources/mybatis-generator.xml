@@ -45,21 +45,14 @@
         </javaClientGenerator>
 
         <!-- 用于自动生成代码的数据库表；生成哪些表-->
-        <table tableName="test_t"
-               enableCountByExample="false"
-               enableUpdateByExample="false"
-               enableDeleteByExample="false"
-               enableSelectByExample="false"
-               selectByExampleQueryId="false">
-            <property name="useActualColumnNames" value="true"/>
-        </table>
-<!--        <table tableName="child_t"-->
+<!--        <table tableName="user"-->
 <!--               enableCountByExample="false"-->
 <!--               enableUpdateByExample="false"-->
 <!--               enableDeleteByExample="false"-->
 <!--               enableSelectByExample="false"-->
 <!--               selectByExampleQueryId="false">-->
-<!--            <property name="useActualColumnNames" value="true"/>-->
+<!--            <property name="useActualColumnNames" value="false"/>-->
 <!--        </table>-->
+<!--        -->
     </context>
 </generatorConfiguration>

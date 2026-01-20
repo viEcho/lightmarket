@@ -1,0 +1,8 @@
+node_modules/
+.claude/
+
+# Infura configuration with API keys
+INFURA_CONFIG.md
+
+# API documentation with implementation details
+API_REFERENCE.md

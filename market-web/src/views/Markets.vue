@@ -1,7 +1,6 @@
 <template>
   <div class="markets-page">
     <div class="page-header">
-      <h1 class="page-title">Prediction Markets</h1>
       <p class="page-subtitle">Trade on the outcomes of real-world events</p>
     </div>
     <MarketList :markets="markets" @navigate="navigateTo" />
