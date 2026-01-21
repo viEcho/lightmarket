@@ -32,7 +32,10 @@ const isAdminPage = computed(() => {
 
 .app-content {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-top: 80px; /* 为 fixed Header 留出空间 */
+  box-sizing: border-box;
 }
 </style>

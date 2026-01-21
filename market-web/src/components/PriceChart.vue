@@ -335,36 +335,28 @@ const getChartOption = () => {
 
 const initChart = () => {
   if (!chartContainer.value) {
-    console.error('Chart container element is null')
     return
   }
-
-  console.log('Initializing ECharts...')
 
   try {
     chartInstance.value = echarts.init(chartContainer.value)
     chartInstance.value.setOption(getChartOption())
     isChartInitialized.value = true
-    console.log('ECharts initialized successfully')
   } catch (error) {
-    console.error('Error initializing chart:', error)
+    // Error handling
   }
 }
 
 const updateChartData = () => {
   if (!chartInstance.value) {
-    console.error('Chart not initialized')
     return
   }
-
-  console.log('Updating chart with type:', chartType.value)
 
   try {
     chartInstance.value.setOption(getChartOption(), true)
     currentPrice.value = priceData.value[priceData.value.length - 1].price
-    console.log('Chart data updated successfully')
   } catch (error) {
-    console.error('Error updating chart data:', error)
+    // Error handling
   }
 }
 
@@ -419,12 +411,9 @@ onMounted(() => {
   nextTick(() => {
     setTimeout(() => {
       if (chartContainer.value) {
-        console.log('Initializing chart with container:', chartContainer.value)
         initChart()
         startRealtimeUpdates()
         window.addEventListener('resize', handleResize)
-      } else {
-        console.error('Chart container not found')
       }
     }, 100)
   })

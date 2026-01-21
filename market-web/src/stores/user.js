@@ -71,39 +71,21 @@ export const useUserStore = defineStore('user', () => {
         // 保持为数字类型（后端需要 Integer），不转换为字符串
         chainId.value = Number(network.chainId)
       } catch (err) {
-        console.warn('Could not get network:', err)
         chainId.value = null
       }
 
-      // Get balance (may fail if RPC is busy, don't block connection)
       try {
         const balanceBigNumber = await provider.getBalance(walletAddress.value)
         balance.value = ethers.formatEther(balanceBigNumber)
       } catch (balanceErr) {
-        console.warn('Could not get balance:', balanceErr)
         balance.value = '0'
-
-        // Check if it's an RPC error and show user-friendly message
-        if (balanceErr.code === -32002 || balanceErr.message?.includes('too many errors')) {
-          console.warn('⚠️ MetaMask RPC 端点繁忙')
-          console.warn('💡 解决方法：')
-          console.warn('   1. 在 MetaMask 中切换到你刚添加的 "Sepolia Infura" 网络')
-          console.warn('   2. 或者等待 30 秒后重试')
-          console.warn('   3. 或者切换到其他网络（如 Polygon）')
-        }
       }
 
       // Perform signature login
       await performSignatureLogin(provider, address)
 
-      // 登录成功后才设置 isConnected = true
-      console.log('🔄 准备设置 isConnected = true, 当前值:', isConnected.value)
-      isConnected.value = true
-      console.log('✅ 已设置 isConnected = true')
-
       return true
     } catch (err) {
-      console.error('Wallet connection error:', err)
       error.value = err.message || 'Failed to connect wallet'
       return false
     } finally {
@@ -114,8 +96,6 @@ export const useUserStore = defineStore('user', () => {
   // 签名登录流程
   const performSignatureLogin = async (provider, address) => {
     try {
-      // 1. 请求 nonce（添加 chainId 参数）
-      console.log('📝 请求 nonce...')
       const nonceData = await post('/user/nonce', {
         walletAddress: address,
         chainId: chainId.value
@@ -126,84 +106,56 @@ export const useUserStore = defineStore('user', () => {
       }
 
       const nonce = nonceData.data.nonce
-      const message = nonceData.data.message // 使用后端返回的消息
-      console.log('✅ 获取到 nonce:', nonce)
-      console.log('📋 待签名消息:', message)
+      const message = nonceData.data.message
 
-      // 2. 请求签名
       const signer = await provider.getSigner()
-      console.log('🔐 请求签名...')
-
       const signature = await signer.signMessage(message)
-      console.log('✅ 签名完成:', signature)
 
-      // 3. 提交签名登录（添加 chainId 参数）
-      console.log('🚀 提交签名登录...')
       const loginData = await post('/user/login', {
         walletAddress: address,
         chainId: chainId.value,
         signature: signature
       })
 
-      // 4. 保存用户信息（包含 accessToken）
+      // 检查登录是否成功
+      if (!loginData.success || loginData.code !== 1000) {
+        throw new Error(loginData.message || 'Login failed')
+      }
+
+      // 登录成功，保存用户信息
       user.value = loginData.data
-      localStorage.setItem('userInfo', JSON.stringify(loginData.data))
-      localStorage.setItem('walletConnected', 'true')
-      localStorage.setItem('walletAddress', address)
-
-      console.log('✅ 登录成功!')
-      console.log('👤 用户信息:', {
-        uid: loginData.data.uid,
-        nickname: loginData.data.nickname,
-        walletAddress: loginData.data.walletAddress,
-        accessToken: loginData.data.accessToken,
-        avatar: loginData.data.avatar
-      })
-      console.log('📦 store.state:', {
-        isConnected: isConnected.value,
-        user: user.value
-      })
-    } catch (err) {
-      console.warn('⚠️ 签名登录失败:', err.message)
-      console.warn('💡 后台服务可能未启动，使用离线模式')
-
-      // 后台服务不可用时的降级处理
-      user.value = {
-        walletAddress: address,
-        nickname: `${address.slice(0, 6)}...${address.slice(-4)}`,
-        avatar: null,
-        createdAt: new Date().toISOString()
+      // 确保 userId 字段存在（从后端返回的 id 字段）
+      if (loginData.data.id && !user.value.userId) {
+        user.value.userId = loginData.data.id
       }
       localStorage.setItem('userInfo', JSON.stringify(user.value))
       localStorage.setItem('walletConnected', 'true')
       localStorage.setItem('walletAddress', address)
 
-      // 即使降级也要设置为已连接状态
       isConnected.value = true
-      console.log('📦 降级模式 store.state:', {
-        isConnected: isConnected.value,
-        user: user.value
-      })
+    } catch (err) {
+      console.error('[UserStore] Login failed:', err)
+      // 登录失败，清除用户信息
+      user.value = null
+      isConnected.value = false
+      throw err
     }
   }
 
   const disconnectWallet = async () => {
     try {
-      // 调用后台退出登录接口（预留）
       if (walletAddress.value) {
         try {
           await postWithAuth('/user/logout', {
             walletAddress: walletAddress.value
           })
         } catch (err) {
-          console.warn('退出登录接口调用失败:', err.message)
           // 即使接口调用失败，也继续执行本地退出逻辑
         }
       }
     } catch (err) {
-      console.warn('退出登录时发生错误:', err)
+      // Error handling
     } finally {
-      // 无论接口是否成功，都清除本地状态
       walletAddress.value = null
       isConnected.value = false
       balance.value = '0'
@@ -227,17 +179,15 @@ export const useUserStore = defineStore('user', () => {
       user.value = JSON.parse(savedUser)
       isConnected.value = true
 
-      // Try to reconnect to wallet
       if (window.ethereum) {
         const provider = new ethers.BrowserProvider(window.ethereum)
         provider.getBalance(walletAddress.value).then((balanceBigNumber) => {
           balance.value = ethers.formatEther(balanceBigNumber)
-        }).catch(err => console.error('Error getting balance:', err))
+        }).catch(() => {})
 
         provider.getNetwork().then(network => {
-          // 保持为数字类型
           chainId.value = Number(network.chainId)
-        }).catch(err => console.error('Error getting network:', err))
+        }).catch(() => {})
       }
     }
   }
@@ -250,7 +200,7 @@ export const useUserStore = defineStore('user', () => {
       const balanceBigNumber = await provider.getBalance(walletAddress.value)
       balance.value = ethers.formatEther(balanceBigNumber)
     } catch (err) {
-      console.error('Error updating balance:', err)
+      // Error handling
     }
   }
 

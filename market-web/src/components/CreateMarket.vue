@@ -71,27 +71,23 @@
             <span class="label-text">Category</span>
             <span class="required">*</span>
           </label>
-          <select id="category" v-model="formData.category" class="form-select" required>
-            <option value="">Select Category</option>
-            <option value="crypto">Crypto</option>
-            <option value="technology">Technology</option>
-            <option value="politics">Politics</option>
-            <option value="sports">Sports</option>
-            <option value="finance">Finance</option>
-            <option value="entertainment">Entertainment</option>
-            <option value="other">Other</option>
+          <select id="category" v-model.number="formData.category" class="form-select" required>
+            <option :value="null">Select Category</option>
+            <option v-for="tag in availableTags" :key="tag.code" :value="tag.code">
+              {{ tag.desc }}
+            </option>
           </select>
         </div>
 
         <!-- End Time -->
         <div class="form-group">
-          <label for="endTime">
+          <label for="closeTime">
             <span class="label-text">Market End Time</span>
             <span class="required">*</span>
           </label>
           <input
-            id="endTime"
-            v-model="formData.endTime"
+            id="closeTime"
+            v-model="formData.closeTime"
             type="datetime-local"
             class="form-input"
             :min="minEndTime"
@@ -102,14 +98,14 @@
 
         <!-- Initial Token Stake -->
         <div class="form-group">
-          <label for="stakeAmount">
+          <label for="baseLiquidity">
             <span class="label-text">Initial Liquidity Stake</span>
             <span class="required">*</span>
           </label>
           <div class="stake-input-wrapper">
             <input
-              id="stakeAmount"
-              v-model.number="formData.stakeAmount"
+              id="baseLiquidity"
+              v-model.number="formData.baseLiquidity"
               type="number"
               placeholder="1000"
               class="form-input stake-input"
@@ -138,13 +134,13 @@
 
         <!-- Resolution Method -->
         <div class="form-group">
-          <label for="resolution">
+          <label for="oracleSource">
             <span class="label-text">Resolution Method</span>
             <span class="required">*</span>
           </label>
           <textarea
-            id="resolution"
-            v-model="formData.resolutionSource"
+            id="oracleSource"
+            v-model="formData.oracleSource"
             placeholder="e.g., Based on Bitcoin price at CoinMarketCap on December 31, 2024 23:59:59 UTC"
             class="form-textarea"
             rows="3"
@@ -160,54 +156,52 @@
             <span class="required">*</span>
           </label>
           <div class="ai-selection-info">
-            <p class="help-text">Select AI models to participate in market resolution. You must select an <strong>odd number</strong> of AI models.</p>
+            <p class="help-text">Select AI models to participate in market resolution. You must select at least <strong>3 AI models</strong> (odd number: 3, 5, 7, 9...).</p>
           </div>
-          <div class="ai-grid">
-            <label v-for="ai in availableAI" :key="ai.value" class="ai-checkbox-label">
+          <div v-if="availableAI.length === 0" class="loading-message">
+            Loading AI models...
+          </div>
+          <div v-else class="ai-grid">
+            <label v-for="ai in availableAI" :key="ai.code" class="ai-checkbox-label">
               <input
                 type="checkbox"
-                :value="ai.value"
-                v-model="formData.selectedAI"
+                :value="ai.code"
+                :checked="selectedAIList.indexOf(ai.code) !== -1"
+                @change="handleAICheck(ai.code, $event.target.checked)"
                 class="ai-checkbox"
               />
               <span class="ai-checkbox-custom"></span>
-              <span class="ai-name">{{ ai.label }}</span>
+              <span class="ai-name">{{ ai.desc }}</span>
             </label>
-          </div>
-          <div v-if="aiValidationError" class="validation-error">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="7" stroke="#EF4444" stroke-width="1.5"/>
-              <path d="M8 5V9M8 11H8.01" stroke="#EF4444" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-            <span>{{ aiValidationError }}</span>
-          </div>
-          <div v-if="formData.selectedAI.length > 0 && formData.selectedAI.length % 2 === 1" class="validation-success">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="7" stroke="#10B981" stroke-width="1.5"/>
-              <path d="M5 8L7 10L11 6" stroke="#10B981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>{{ formData.selectedAI.length }} AI model(s) selected - Valid odd number</span>
           </div>
         </div>
 
         <!-- Tags -->
         <div class="form-group">
-          <label for="tags">
+          <label>
             <span class="label-text">Tags</span>
+            <span class="required">*</span>
           </label>
-          <input
-            id="tags"
-            v-model="tagInput"
-            type="text"
-            placeholder="Enter tag and press Enter to add"
-            class="form-input"
-            @keydown.enter.prevent="addTag"
-          />
-          <div v-if="formData.tags.length > 0" class="tags-list">
-            <span v-for="(tag, index) in formData.tags" :key="index" class="tag-item">
-              {{ tag }}
-              <button type="button" @click="removeTag(index)" class="tag-remove">×</button>
-            </span>
+          <p class="help-text">Select up to 5 tags that best describe your market</p>
+          <div v-if="isLoadingOptions" class="loading-message">
+            Loading tags...
+          </div>
+          <div v-else class="tags-grid">
+            <label
+              v-for="tag in availableTags"
+              :key="tag.code"
+              class="tag-checkbox-label"
+            >
+              <input
+                type="checkbox"
+                :value="tag.code"
+                :checked="selectedTagsList.indexOf(tag.code) !== -1"
+                @change="handleTagCheck(tag.code, $event.target.checked)"
+                class="tag-checkbox"
+              />
+              <span class="tag-checkbox-custom"></span>
+              <span class="tag-name">{{ tag.desc }}</span>
+            </label>
           </div>
         </div>
 
@@ -250,6 +244,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { mockMarkets } from '../data/markets';
+import { getOptions, createMarket } from '../utils/api';
 
 export default {
   name: 'CreateMarket',
@@ -258,44 +253,105 @@ export default {
     const formData = ref({
       title: '',
       description: '',
-      category: '',
-      endTime: '',
-      stakeAmount: 1000,
-      resolutionSource: '',
-      tags: [],
-      selectedAI: []
+      category: null,  // 数字code
+      closeTime: '',   // ISO 8601格式
+      baseLiquidity: 1000,
+      oracleSource: '',
+      aiModel: '',     // 逗号分隔的数字code字符串
+      tags: ''         // 逗号分隔的数字code字符串
     });
 
-    // 可用的AI模型列表
-    const availableAI = [
-      { value: 'chatgpt', label: 'ChatGPT' },
-      { value: 'claude', label: 'Claude' },
-      { value: 'gemini', label: 'Gemini' },
-      { value: 'perplexity', label: 'Perplexity' },
-      { value: 'grok', label: 'Grok' },
-      { value: 'wenxin', label: '文心一言' },
-      { value: 'tongyi', label: '通义千问' },
-      { value: 'glm', label: '智谱清言（GLM）' },
-      { value: 'kimi', label: 'Kimi' },
-      { value: 'xunfei', label: '讯飞星火' }
+    // 临时存储选中的 AI 和 tags（用于UI交互）
+    const selectedAIList = ref([]);
+    const selectedTagsList = ref([]);
+
+    // 手动处理checkbox变化
+    const handleAICheck = (aiCode, checked) => {
+      if (checked) {
+        // 使用 Set 来避免重复，并处理类型问题
+        const currentSet = new Set(selectedAIList.value);
+        currentSet.add(Number(aiCode));
+        selectedAIList.value = Array.from(currentSet);
+      } else {
+        selectedAIList.value = selectedAIList.value.filter(code => Number(code) !== Number(aiCode));
+      }
+    };
+
+    const handleTagCheck = (tagCode, checked) => {
+      if (checked) {
+        // 使用 Set 来避免重复，并处理类型问题
+        const currentSet = new Set(selectedTagsList.value);
+        currentSet.add(Number(tagCode));
+        selectedTagsList.value = Array.from(currentSet);
+      } else {
+        selectedTagsList.value = selectedTagsList.value.filter(code => Number(code) !== Number(tagCode));
+      }
+    };
+
+    // 从 API 获取的选项
+    const availableTags = ref([]);
+    const availableAI = ref([]);
+    const isLoadingOptions = ref(false);
+
+    // 默认的 tags（作为降级方案）- code 与后端保持一致（Integer）
+    const defaultTags = [
+      { code: 1, desc: 'Crypto' },
+      { code: 2, desc: 'Technology' },
+      { code: 3, desc: 'Politics' },
+      { code: 4, desc: 'Sports' },
+      { code: 5, desc: 'Finance' },
+      { code: 6, desc: 'Entertainment' },
+      { code: 7, desc: 'Other' }
     ];
 
-    const tagInput = ref('');
+    // 默认的 AI（作为降级方案）- code 与后端保持一致（Integer）
+    const defaultAI = [
+      { code: 1, desc: 'ChatGpt' },
+      { code: 2, desc: 'Claude' },
+      { code: 3, desc: 'Gemini' },
+      { code: 4, desc: 'Preplexity' },
+      { code: 5, desc: 'Grok' },
+      { code: 6, desc: '文心一言' },
+      { code: 7, desc: '通义千问' },
+      { code: 8, desc: '智普清言' },
+      { code: 9, desc: 'Kimi' },
+      { code: 10, desc: '讯飞星火' }
+    ];
+
     const isSubmitting = ref(false);
     const duplicateMarket = ref(null);
     const allMarkets = ref([]);
 
-    // AI验证错误信息
-    const aiValidationError = computed(() => {
-      const selectedCount = formData.value.selectedAI.length;
-      if (selectedCount === 0) {
-        return 'Please select at least one AI model';
+    // 加载配置选项
+    const loadOptions = async () => {
+      try {
+        isLoadingOptions.value = true;
+
+        const response = await getOptions('tag,ai');
+
+        if (response && response.data) {
+          if (response.data.tag && Array.isArray(response.data.tag)) {
+            availableTags.value = response.data.tag;
+          } else {
+            availableTags.value = defaultTags;
+          }
+
+          if (response.data.ai && Array.isArray(response.data.ai)) {
+            availableAI.value = response.data.ai;
+          } else {
+            availableAI.value = defaultAI;
+          }
+        } else {
+          availableTags.value = defaultTags;
+          availableAI.value = defaultAI;
+        }
+      } catch (err) {
+        availableTags.value = defaultTags;
+        availableAI.value = defaultAI;
+      } finally {
+        isLoadingOptions.value = false;
       }
-      if (selectedCount % 2 === 0) {
-        return `You selected ${selectedCount} AI model(s). Please select an odd number (1, 3, 5, 7, 9)`;
-      }
-      return null;
-    });
+    };
 
     // 获取最早结束时间（当前时间+24小时）
     const minEndTime = computed(() => {
@@ -305,7 +361,10 @@ export default {
     });
 
     // 加载所有市场数据（包括待审核的）
-    onMounted(() => {
+    onMounted(async () => {
+      // 加载配置选项
+      await loadOptions();
+
       allMarkets.value = [...mockMarkets];
       // 这里后续会从localStorage或API加载用户创建的市场
       const userCreated = localStorage.getItem('userCreatedMarkets');
@@ -345,22 +404,6 @@ export default {
       }
     };
 
-    // 添加标签
-    const addTag = () => {
-      const tag = tagInput.value.trim();
-      if (tag && !formData.value.tags.includes(tag)) {
-        if (formData.value.tags.length < 5) {
-          formData.value.tags.push(tag);
-          tagInput.value = '';
-        }
-      }
-    };
-
-    // 移除标签
-    const removeTag = (index) => {
-      formData.value.tags.splice(index, 1);
-    };
-
     // 提交表单
     const handleSubmit = async () => {
       if (isSubmitting.value) return;
@@ -369,63 +412,88 @@ export default {
         return;
       }
 
-      // 验证AI选择
-      if (aiValidationError.value) {
-        alert(aiValidationError.value);
+      // 验证 AI 选择
+      if (!selectedAIList.value || selectedAIList.value.length === 0) {
+        alert('Please select at least 3 AI models (must be odd number)');
         return;
       }
+      if (selectedAIList.value.length < 3) {
+        alert(`You selected ${selectedAIList.value.length} AI model(s). Please select at least 3 AI models`);
+        return;
+      }
+      if (selectedAIList.value.length % 2 === 0) {
+        alert(`You selected ${selectedAIList.value.length} AI model(s). Please select an odd number (3, 5, 7, 9)`);
+        return;
+      }
+
+      // 验证 Tags 选择
+      if (!selectedTagsList.value || selectedTagsList.value.length === 0) {
+        alert('Please select at least one tag');
+        return;
+      }
+      if (selectedTagsList.value.length > 5) {
+        alert('Please select no more than 5 tags');
+        return;
+      }
+
+      // 从 localStorage 获取 userId
+      const userInfoStr = localStorage.getItem('userInfo');
+      if (!userInfoStr) {
+        alert('Please login first');
+        router.push('/markets');
+        return;
+      }
+      const userInfo = JSON.parse(userInfoStr);
+      const userId = userInfo.userId;
 
       isSubmitting.value = true;
 
       try {
-        // 创建新市场对象
-        const newMarket = {
-          id: `market-${Date.now()}`,
+        // 将 closeTime 转换为 ISO 8601 格式
+        const closeTimeISO = new Date(formData.value.closeTime).toISOString();
+
+        // 准备提交数据（字段名与后端数据库表一致）
+        const submitData = {
           title: formData.value.title,
           description: formData.value.description,
           category: formData.value.category,
-          endTime: new Date(formData.value.endTime).getTime(),
-          stakeAmount: formData.value.stakeAmount,
-          resolutionSource: formData.value.resolutionSource,
-          tags: formData.value.tags,
-          selectedAI: formData.value.selectedAI, // 添加选中的AI
-          creator: 'Current User', // 后续从钱包地址获取
-          createTime: Date.now(),
-          status: 'pending', // pending: 待审核, approved: 已通过, rejected: 已拒绝
-          stage: 'pre-review', // pre-review: 预审, final-review: 终审
-          currentProbability: 0.5,
-          volume: 0,
-          liquidity: formData.value.stakeAmount,
-          yesPrice: 0.5,
-          noPrice: 0.5
+          closeTime: closeTimeISO,
+          baseLiquidity: formData.value.baseLiquidity,
+          oracleSource: formData.value.oracleSource,
+          aiModel: selectedAIList.value.join(','),
+          tags: selectedTagsList.value.join(',')
         };
 
-        // 保存到localStorage（后续改为API调用）
-        const userCreated = JSON.parse(localStorage.getItem('userCreatedMarkets') || '[]');
-        userCreated.push(newMarket);
-        localStorage.setItem('userCreatedMarkets', JSON.stringify(userCreated));
+        // 调用后端 API
+        const response = await createMarket(submitData, userId);
 
-        alert('Prediction market created successfully! Submitted for pre-review, please wait for approval.');
+        if (response && response.data) {
+          alert(`Market created successfully! Market ID: ${response.data}`);
 
-        // 重置表单
-        formData.value = {
-          title: '',
-          description: '',
-          category: '',
-          endTime: '',
-          stakeAmount: 1000,
-          resolutionSource: '',
-          tags: [],
-          selectedAI: []
-        };
-        duplicateMarket.value = null;
+          // 重置表单
+          formData.value = {
+            title: '',
+            description: '',
+            category: null,
+            closeTime: '',
+            baseLiquidity: 1000,
+            oracleSource: '',
+            aiModel: '',
+            tags: ''
+          };
+          selectedAIList.value = [];
+          selectedTagsList.value = [];
+          duplicateMarket.value = null;
 
-        // 返回市场列表
-        router.push('/markets');
+          // 返回市场列表
+          router.push('/markets');
+        } else {
+          throw new Error('Invalid response');
+        }
 
       } catch (error) {
         console.error('Failed to create market:', error);
-        alert('Failed to create. Please try again.');
+        alert(`Failed to create market: ${error.message || 'Unknown error'}`);
       } finally {
         isSubmitting.value = false;
       }
@@ -440,16 +508,18 @@ export default {
 
     return {
       formData,
-      tagInput,
+      selectedAIList,
+      selectedTagsList,
       isSubmitting,
       duplicateMarket,
       minEndTime,
+      availableTags,
       availableAI,
-      aiValidationError,
+      isLoadingOptions,
+      handleAICheck,
+      handleTagCheck,
       checkDuplicate,
       goToMarket,
-      addTag,
-      removeTag,
       handleSubmit,
       handleCancel
     };
@@ -461,7 +531,30 @@ export default {
 .create-market-container {
   max-width: 800px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 40px 20px 80px 20px;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* 自定义滚动条样式 */
+.create-market-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.create-market-container::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.create-market-container::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.create-market-container::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
 }
 
 .create-market-card {
@@ -641,44 +734,81 @@ export default {
 }
 
 /* 标签 */
-.tags-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.loading-message {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.tags-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
   margin-top: 8px;
 }
 
-.tag-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  background: var(--accent-light);
-  color: white;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.tag-remove {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
-  width: 16px;
-  height: 16px;
+.tag-checkbox-label {
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 2px;
-  transition: background 0.2s;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
 }
 
-.tag-remove:hover {
-  background: rgba(255, 255, 255, 0.2);
+.tag-checkbox-label:hover {
+  background: rgba(99, 102, 241, 0.05);
+  border-color: var(--accent-light);
+}
+
+.tag-checkbox-label.tag-selected {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--accent-light);
+}
+
+.tag-checkbox {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tag-checkbox-custom {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--input-bg);
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.tag-checkbox:checked + .tag-checkbox-custom {
+  background: var(--accent-light);
+  border-color: var(--accent-light);
+}
+
+.tag-checkbox:checked + .tag-checkbox-custom::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.tag-name {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 /* 信息框 */
@@ -755,7 +885,8 @@ export default {
   transform: rotate(45deg);
 }
 
-.ai-checkbox-label:has(.ai-checkbox:checked) {
+.ai-checkbox-label:has(.ai-checkbox:checked),
+.ai-checkbox-label.ai-selected {
   background: rgba(99, 102, 241, 0.1);
   border-color: var(--accent-light);
 }
@@ -872,6 +1003,10 @@ export default {
 
   .ai-grid {
     grid-template-columns: 1fr;
+  }
+
+  .tags-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   }
 
   .duplicate-warning {

@@ -11,9 +11,8 @@ const getToken = () => {
   if (userInfo) {
     try {
       const user = JSON.parse(userInfo)
-      return user.accessToken || null  // 修复：后端返回的是 accessToken
+      return user.accessToken || null
     } catch (err) {
-      console.error('Error parsing userInfo:', err)
       return null
     }
   }
@@ -47,10 +46,15 @@ const request = async (endpoint, options = {}, withToken = false) => {
     headers
   }
 
+  // 调试：打印 findList 接口的实际传参
+  if (endpoint.includes('findList') && config.body) {
+    console.log('[API Debug] findList 请求参数:', config.body)
+    console.log('[API Debug] Content-Type:', headers['Content-Type'])
+  }
+
   try {
     const response = await fetch(url, config)
 
-    // 处理 HTTP 错误状态
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
       throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
@@ -58,14 +62,12 @@ const request = async (endpoint, options = {}, withToken = false) => {
 
     const data = await response.json()
 
-    // 处理业务错误码（后端成功 code 是 1000，或者 success 为 true）
     if (!data.success || data.code !== 1000) {
       throw new Error(data.message || 'Request failed')
     }
 
     return data
   } catch (error) {
-    console.error('API request error:', error)
     throw error
   }
 }
@@ -140,4 +142,112 @@ export const putWithAuth = (endpoint, data = {}) => {
  */
 export const deleteWithAuth = (endpoint) => {
   return request(endpoint, { method: 'DELETE' }, true)
+}
+
+/**
+ * GET 请求获取配置选项（tag, ai 等）
+ * @param {string} types - 选项类型，多个用逗号分隔，如 "tag,ai"
+ * @returns {Promise<Object>} 响应数据
+ */
+export const getOptions = (types) => {
+  return get(`/market/options?types=${types}`)
+}
+
+/**
+ * POST 请求分页查询市场列表（使用表单传参）
+ * @param {Object} params - 查询参数
+ * @param {number} params.num - 页码，从1开始，默认1
+ * @param {number} params.size - 每页大小，默认6
+ * @param {string} params.tagCode - 市场标签代码（可选）
+ * @param {number} params.marketStatus - 市场状态，默认3（已发布）
+ * @param {string} params.keyword - 搜索关键词（可选）
+ * @returns {Promise<Object>} 响应数据
+ */
+export const getMarketList = (params = {}) => {
+  const defaultParams = {
+    num: 1,
+    size: 6,
+    marketStatus: 3
+  }
+  const finalParams = { ...defaultParams, ...params }
+
+  // 使用表单传参方式
+  const formData = new URLSearchParams()
+  Object.keys(finalParams).forEach(key => {
+    if (finalParams[key] !== undefined && finalParams[key] !== null) {
+      formData.append(key, finalParams[key])
+    }
+  })
+
+  return request('/market/findList', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: formData.toString()
+  }, false)
+}
+
+/**
+ * POST 请求分页查询用户参与的市场列表（使用表单传参）
+ * @param {Object} params - 查询参数
+ * @param {number} params.userId - 用户ID
+ * @param {number} params.num - 页码，从1开始，默认1
+ * @param {number} params.size - 每页大小，默认6
+ * @returns {Promise<Object>} 响应数据
+ */
+export const getMyMarkets = (params = {}) => {
+  const defaultParams = {
+    num: 1,
+    size: 6
+  }
+  const finalParams = { ...defaultParams, ...params }
+
+  // 使用表单传参方式
+  const formData = new URLSearchParams()
+  Object.keys(finalParams).forEach(key => {
+    if (finalParams[key] !== undefined && finalParams[key] !== null) {
+      formData.append(key, finalParams[key])
+    }
+  })
+
+  return request('/market/findMyList', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: formData.toString()
+  }, false)
+}
+
+/**
+ * POST 请求创建市场（需要 token，使用 form 表单）
+ * @param {Object} data - 市场数据
+ * @param {string} data.title - 市场标题
+ * @param {string} data.description - 市场描述
+ * @param {number} data.category - 市场分类（数字code）
+ * @param {string} data.closeTime - 市场截止时间（ISO 8601格式）
+ * @param {string} data.baseLiquidity - 基础流动性金额
+ * @param {string} data.oracleSource - 预言机来源
+ * @param {string} data.aiModel - AI模型（逗号分隔的数字code）
+ * @param {string} data.tags - 标签（逗号分隔的数字code）
+ * @param {number} userId - 用户ID
+ * @returns {Promise<Object>} 响应数据
+ */
+export const createMarket = (data, userId) => {
+  // 将对象转为表单格式
+  const formData = new URLSearchParams()
+  Object.keys(data).forEach(key => {
+    if (data[key] !== undefined && data[key] !== null) {
+      formData.append(key, data[key])
+    }
+  })
+
+  return request(`/market/add?userId=${userId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: formData.toString()
+  }, true)
 }

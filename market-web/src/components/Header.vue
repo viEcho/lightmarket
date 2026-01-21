@@ -2,18 +2,19 @@
   <header class="header">
     <div class="header-container">
       <div class="logo">
-        <router-link to="/markets" class="logo-link">
+        <a href="/markets" @click.prevent="handleLogoClick" class="logo-link">
           <h1>LightMarket</h1>
-        </router-link>
+        </a>
       </div>
       <nav class="nav">
-        <router-link
-          to="/markets"
+        <a
+          href="/markets"
+          @click.prevent="handleMarketsClick"
           class="nav-link"
           :class="{ active: $route.path === '/markets' || $route.path === '/' }"
         >
           Markets
-        </router-link>
+        </a>
         <router-link
           to="/leaderboard"
           class="nav-link"
@@ -39,9 +40,11 @@
           </svg>
           Make market
         </button>
+        <!-- My Markets Button (Visible when connected) -->
         <button
+          v-if="isConnected"
           class="btn-secondary"
-          @click="$router.push('/admin-dashboard')"
+          @click="handleMyMarkets"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" stroke-width="2"/>
@@ -116,11 +119,12 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { storeToRefs } from 'pinia'
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const showUserMenu = ref(false)
 
@@ -139,10 +143,7 @@ const getAvatarText = () => {
 }
 
 const handleConnect = async () => {
-  const success = await userStore.connectWallet()
-  if (!success) {
-    console.error('Failed to connect wallet')
-  }
+  await userStore.connectWallet()
 }
 
 const handleDisconnect = async () => {
@@ -156,6 +157,54 @@ const toggleUserMenu = () => {
 
 const handleRefreshBalance = async () => {
   await userStore.updateUserBalance()
+}
+
+const handleMyMarkets = async () => {
+  console.log('[Header] My Markets clicked, isConnected:', isConnected.value)
+
+  // 跳转到 markets 页面，并带上 filter=my 参数
+  if (route.path === '/markets') {
+    // 如果已经在 markets 页面，通过自定义事件触发
+    console.log('[Header] Already on markets page, triggering event')
+    const event = new CustomEvent('load-my-markets')
+    window.dispatchEvent(event)
+  } else {
+    // 跳转到 markets 页面并带上参数
+    console.log('[Header] Navigating to /markets?filter=my')
+    await router.push({ path: '/markets', query: { filter: 'my' } })
+  }
+}
+
+const handleLogoClick = () => {
+  console.log('[Header] Logo clicked')
+  if (route.path === '/markets') {
+    // 已经在 markets 页面，清除 query 参数并触发返回所有市场事件
+    if (route.query.filter) {
+      console.log('[Header] Clearing query params and triggering back-to-all')
+      router.replace({ path: '/markets', query: {} })
+    }
+    const event = new CustomEvent('back-to-all-markets')
+    window.dispatchEvent(event)
+  } else {
+    // 跳转到 markets 页面
+    router.push('/markets')
+  }
+}
+
+const handleMarketsClick = () => {
+  console.log('[Header] Markets link clicked')
+  if (route.path === '/markets') {
+    // 已经在 markets 页面，清除 query 参数并触发返回所有市场事件
+    if (route.query.filter) {
+      console.log('[Header] Clearing query params and triggering back-to-all')
+      router.replace({ path: '/markets', query: {} })
+    }
+    const event = new CustomEvent('back-to-all-markets')
+    window.dispatchEvent(event)
+  } else {
+    // 跳转到 markets 页面
+    router.push('/markets')
+  }
 }
 
 const getNetworkName = (chainId) => {
@@ -209,6 +258,7 @@ onMounted(() => {
   text-decoration: none;
   display: inline-block;
   transition: opacity 0.15s ease;
+  cursor: pointer;
 }
 
 .logo-link:hover {
@@ -238,6 +288,7 @@ onMounted(() => {
   font-size: 0.875rem;
   transition: color 0.15s ease;
   position: relative;
+  cursor: pointer;
 }
 
 .nav-link::after {

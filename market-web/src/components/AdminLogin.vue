@@ -137,7 +137,6 @@ export default {
           errorMessage.value = 'Invalid username or password';
         }
       } catch (error) {
-        console.error('Login error:', error);
         errorMessage.value = 'Login failed. Please try again.';
       } finally {
         isLoading.value = false;

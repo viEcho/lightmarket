@@ -8,7 +8,8 @@
       "Bash(grep:*)",
       "Bash(curl:*)",
       "Bash(cat:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(find:*)"
     ]
   }
 }

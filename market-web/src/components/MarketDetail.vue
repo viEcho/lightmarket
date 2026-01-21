@@ -1,15 +1,7 @@
 <template>
   <div class="market-detail-container">
-    <!-- 返回按钮 -->
-    <button @click="goBack" class="back-btn">
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path d="M12 4L8 8H12V12H8L12 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      Back to Markets
-    </button>
-
     <!-- 审核状态横幅 -->
-    <div v-if="market" :class="['status-banner', market.status]">
+    <div v-if="market" :class="['status-banner', getBannerClass(market.status)]">
       <div class="banner-content">
         <div class="banner-icon">
           <svg v-if="market.status === 'pending'" width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -46,7 +38,7 @@
         <!-- 标签 -->
         <div v-if="market.tags && market.tags.length > 0" class="market-tags">
           <span v-for="(tag, index) in market.tags" :key="index" class="tag">
-            {{ tag }}
+            {{ typeof tag === 'object' ? tag.desc : tag }}
           </span>
         </div>
       </div>
@@ -85,7 +77,7 @@
       </div>
 
       <!-- Trading Charts and Orderbook -->
-      <div v-if="market.status === 'approved'" class="trading-charts-section">
+      <div v-if="['approved', 'published'].includes(market.status)" class="trading-charts-section">
         <div class="charts-row">
           <!-- Price Chart -->
           <PriceChart :marketId="marketId" class="price-chart-full" />
@@ -174,7 +166,7 @@
       </div>
 
       <!-- Trading操作 -->
-      <div v-if="market.status === 'approved'" class="trading-section">
+      <div v-if="['approved', 'published'].includes(market.status)" class="trading-section">
         <h3 class="section-title">Trading</h3>
         <div class="trading-panel">
           <div class="trading-options">
@@ -245,18 +237,24 @@
     </div>
 
     <!-- 加载状态 -->
-    <div v-else class="loading-state">
+    <div v-if="isLoading" class="loading-state">
       <div class="loading-spinner"></div>
       <p>Loading...</p>
+    </div>
+
+    <!-- 未找到数据 -->
+    <div v-else-if="!market" class="loading-state">
+      <p>Market not found</p>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { mockMarkets } from '../data/markets';
 import { useUserStore } from '../stores/user';
+import { useMarkets } from '../composables/useMarkets';
 import PriceChart from './PriceChart.vue';
 import OrderBook from './OrderBook.vue';
 import RecentTrades from './RecentTrades.vue';
@@ -280,20 +278,35 @@ export default {
     const market = ref(null);
     const selectedOption = ref(null);
     const tradeAmount = ref(null);
+    const isLoading = ref(true);
+
+    // 使用 useMarkets 获取 findMarketById 方法
+    const { findMarketById } = useMarkets();
 
     // 加载市场数据
     onMounted(() => {
-      // 从mock数据查找
-      let found = mockMarkets.find(m => m.id == props.marketId);
+      try {
+        isLoading.value = true;
 
-      // 如果没找到，从localStorage查找用户创建的市场
-      if (!found) {
-        const userCreated = JSON.parse(localStorage.getItem('userCreatedMarkets') || '[]');
-        found = userCreated.find(m => m.id == props.marketId);
-      }
+        // 先从已加载的 markets 中查找
+        let found = findMarketById(props.marketId);
 
-      if (found) {
-        market.value = found;
+        // 如果没找到，从mock数据查找
+        if (!found) {
+          found = mockMarkets.find(m => m.id == props.marketId);
+        }
+
+        // 如果还没找到，从localStorage查找用户创建的市场
+        if (!found) {
+          const userCreated = JSON.parse(localStorage.getItem('userCreatedMarkets') || '[]');
+          found = userCreated.find(m => m.id == props.marketId);
+        }
+
+        if (found) {
+          market.value = found;
+        }
+      } finally {
+        isLoading.value = false;
       }
     });
 
@@ -304,8 +317,8 @@ export default {
     const getStatusTitle = (status, stage) => {
       if (status === 'pending') {
         return stage === 'pre-review' ? 'In Pre-review' : 'In Final-review';
-      } else if (status === 'approved') {
-        return 'Approved';
+      } else if (status === 'approved' || status === 'published') {
+        return 'Open for Trading';
       } else {
         return 'Rejected';
       }
@@ -316,7 +329,7 @@ export default {
         return stage === 'pre-review'
           ? 'Market is in pre-review, estimated 1-2 business days'
           : 'Market is in final-review, estimated 3-5 business days';
-      } else if (status === 'approved') {
+      } else if (status === 'approved' || status === 'published') {
         return '市场已通过审核并开放Trading';
       } else {
         return 'Market did not pass review';
@@ -359,8 +372,16 @@ export default {
 
     const getTimeRemaining = (endTime) => {
       if (!endTime) return '--';
+
+      // 如果是字符串，转换为时间戳
+      let endTimeMs = endTime;
+      if (typeof endTime === 'string') {
+        endTimeMs = new Date(endTime).getTime();
+        if (isNaN(endTimeMs)) return '--';
+      }
+
       const now = Date.now();
-      const diff = endTime - now;
+      const diff = endTimeMs - now;
 
       if (diff <= 0) return '已Ends';
 
@@ -409,6 +430,11 @@ export default {
       return (price * 100).toFixed(1);
     };
 
+    const getBannerClass = (status) => {
+      if (status === 'published') return 'approved';
+      return status;
+    };
+
     return {
       market,
       selectedOption,
@@ -423,7 +449,8 @@ export default {
       getTimeRemaining,
       selectOption,
       calculateExpectedReturn,
-      getAveragePrice
+      getAveragePrice,
+      getBannerClass
     };
   }
 };
@@ -433,7 +460,7 @@ export default {
 .market-detail-container {
   max-width: 1000px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 76px 20px 40px 20px;
 }
 
 .back-btn {

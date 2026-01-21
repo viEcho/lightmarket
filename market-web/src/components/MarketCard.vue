@@ -2,8 +2,16 @@
   <div class="market-card" @click="handleCardClick">
     <div class="card-content">
       <div class="card-header">
-        <span class="category">{{ market.category }}</span>
-        <span class="end-date">{{ formatDate(market.endDate) }}</span>
+        <div class="tags-list">
+          <span
+            v-for="tag in displayTags"
+            :key="tag.code"
+            class="tag-item"
+          >
+            {{ tag.desc }}
+          </span>
+        </div>
+        <span class="end-date">{{ formatDate(market.endTime) }}</span>
       </div>
 
       <h3 class="question">{{ market.question }}</h3>
@@ -41,6 +49,8 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+
 const props = defineProps({
   market: {
     type: Object,
@@ -49,6 +59,26 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['bet', 'click'])
+
+// 显示标签列表
+const displayTags = computed(() => {
+  // 如果 market 已经有 tags 数组（包含 {code, desc}），直接返回
+  if (Array.isArray(props.market.tags) && props.market.tags.length > 0) {
+    // 检查第一个元素是否是对象（有 desc 属性）
+    if (props.market.tags[0] && typeof props.market.tags[0] === 'object' && props.market.tags[0].desc) {
+      return props.market.tags
+    }
+    // 如果是 code 数组，需要从 availableTags 查找（这个先留空，因为MarketList会传入转换后的数据）
+    return []
+  }
+
+  // 降级：如果 market.categoryDesc 存在，使用它
+  if (props.market.categoryDesc) {
+    return [{ code: props.market.category, desc: props.market.categoryDesc }]
+  }
+
+  return []
+})
 
 const formatDate = (dateString) => {
   const date = new Date(dateString)
@@ -118,23 +148,31 @@ const handleBet = (type) => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  gap: 0.5rem;
 }
 
-.category {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  padding: 0.375rem 0.75rem;
+.tags-list {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.tag-item {
+  background: var(--accent);
+  color: white;
+  padding: 0.25rem 0.75rem;
   border-radius: 6px;
   font-weight: 500;
   font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 .end-date {
   font-size: 0.875rem;
   color: var(--text-tertiary);
   font-weight: 500;
+  flex-shrink: 0;
 }
 
 .question {

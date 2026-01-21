@@ -3,21 +3,201 @@
     <div class="page-header">
       <p class="page-subtitle">Trade on the outcomes of real-world events</p>
     </div>
-    <MarketList :markets="markets" @navigate="navigateTo" />
+
+    <!-- 标签筛选区（固定，不滚动） -->
+    <div class="tags-section" v-if="!isViewingMyMarkets">
+      <button
+        v-for="filter in filters"
+        :key="filter.key"
+        class="filter-btn"
+        :class="{ active: selectedFilter === filter.key }"
+        @click="handleFilterChange(filter.key)"
+      >
+        {{ filter.label }}
+      </button>
+    </div>
+
+    <!-- 返回按钮区（查看我的市场时显示） -->
+    <div class="tags-section" v-if="isViewingMyMarkets">
+      <button class="filter-btn back-btn" @click="handleBackToAll">
+        ← All Markets
+      </button>
+    </div>
+
+    <!-- 市场卡片滚动区 -->
+    <div class="markets-scroll-container" ref="scrollContainer">
+      <MarketList
+        :markets="markets"
+        :isLoading="isLoading"
+        :hasMore="hasMore"
+        @navigate="navigateTo"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMarkets } from '../composables/useMarkets'
 import MarketList from '../components/MarketList.vue'
+import { getOptions } from '../utils/api'
+import { useUserStore } from '../stores/user'
 
 const router = useRouter()
-const { markets } = useMarkets()
+const userStore = useUserStore()
 
-onMounted(() => {
-  // 组件挂载时加载数据
+// 使用 markets composable
+const {
+  markets,
+  isLoading,
+  hasMore,
+  isViewingMyMarkets,
+  loadMarkets,
+  loadNextPage,
+  loadMyMarkets,
+  backToAllMarkets
+} = useMarkets()
+
+// 滚动容器引用
+const scrollContainer = ref(null)
+
+// 节流变量
+let scrollTimeout = null
+let isLoadingMore = false // 防止重复加载
+
+// 标签相关
+const selectedFilter = ref('all')
+const availableTags = ref([])
+
+// 动态生成过滤器列表
+const filters = computed(() => {
+  const baseFilters = [{ key: 'all', label: 'All Markets' }]
+  const tagFilters = availableTags.value.map(tag => ({
+    key: tag.code,
+    label: tag.desc
+  }))
+  return [...baseFilters, ...tagFilters]
+})
+
+// 加载标签选项
+const loadTags = async () => {
+  try {
+    const response = await getOptions('tag')
+    if (response && response.data && response.data.tag) {
+      availableTags.value = response.data.tag
+    }
+  } catch (err) {
+    console.error('Failed to load tags:', err)
+  }
+}
+
+// 处理标签变化
+const handleFilterChange = (filter) => {
+  if (selectedFilter.value === filter) return
+
+  selectedFilter.value = filter
+  console.log('[Markets] Filter changed to:', filter)
+
+  // 重置滚动位置
+  if (scrollContainer.value) {
+    scrollContainer.value.scrollTop = 0
+  }
+
+  // 加载对应标签的市场数据
+  loadMarkets({ tag: filter, refresh: true })
+}
+
+// 处理返回所有市场
+const handleBackToAll = () => {
+  selectedFilter.value = 'all'
+  backToAllMarkets()
+}
+
+// 滚动事件处理
+const handleScroll = () => {
+  // 使用节流避免频繁触发
+  if (scrollTimeout) {
+    return
+  }
+
+  scrollTimeout = setTimeout(() => {
+    scrollTimeout = null
+
+    // 如果正在加载或没有更多数据，直接返回
+    if (isLoading.value || !hasMore.value || isLoadingMore) {
+      return
+    }
+
+    if (!scrollContainer.value) {
+      return
+    }
+
+    const container = scrollContainer.value
+    const scrollTop = container.scrollTop
+    const scrollHeight = container.scrollHeight
+    const clientHeight = container.clientHeight
+    const distanceToBottom = scrollHeight - scrollTop - clientHeight
+
+    console.log('[Markets] Scroll - distance to bottom:', distanceToBottom, 'isLoading:', isLoading.value, 'hasMore:', hasMore.value)
+
+    // 距离底部 200px 时触发加载
+    if (distanceToBottom < 200) {
+      console.log('[Markets] Loading next page')
+      isLoadingMore = true
+      loadNextPage()
+
+      // 加载完成后重置标志
+      setTimeout(() => {
+        isLoadingMore = false
+      }, 1000)
+    }
+  }, 200) // 200ms 节流
+}
+
+onMounted(async () => {
+  // 加载标签选项
+  loadTags()
+
+  // 初始化加载市场数据
+  loadMarkets({ refresh: true })
+
+  // 监听返回所有市场事件
+  window.addEventListener('back-to-all-markets', () => {
+    backToAllMarkets()
+    selectedFilter.value = 'all'
+  })
+
+  // 监听加载我的市场事件
+  const handleLoadMyMarkets = () => {
+    const userId = userStore.user?.userId
+    if (!userId) {
+      alert('无法获取用户ID，请重新连接钱包')
+      return
+    }
+    loadMyMarkets({ userId, refresh: true })
+  }
+  window.addEventListener('load-my-markets', handleLoadMyMarkets)
+
+  // 等待 DOM 渲染完成后添加滚动监听
+  await nextTick()
+  if (scrollContainer.value) {
+    scrollContainer.value.addEventListener('scroll', handleScroll, { passive: true })
+    console.log('[Markets] Scroll listener attached to container')
+  } else {
+    console.error('[Markets] Failed to attach scroll listener - container not found')
+  }
+})
+
+onUnmounted(() => {
+  if (scrollTimeout) {
+    clearTimeout(scrollTimeout)
+    scrollTimeout = null
+  }
+
+  if (scrollContainer.value) {
+    scrollContainer.value.removeEventListener('scroll', handleScroll)
+  }
 })
 
 const navigateTo = (page, param) => {
@@ -25,6 +205,8 @@ const navigateTo = (page, param) => {
     router.push({ name: 'market-detail', params: { marketId: param } })
   } else if (page === 'create-market') {
     router.push({ name: 'create-market' })
+  } else if (page === 'back-to-all') {
+    handleBackToAll()
   }
 }
 </script>
@@ -36,10 +218,15 @@ const navigateTo = (page, param) => {
   padding: 3rem 2rem;
   width: 100%;
   box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .page-header {
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
+  flex-shrink: 0; /* 防止 header 被压缩 */
 }
 
 .page-title {
@@ -55,5 +242,73 @@ const navigateTo = (page, param) => {
   color: var(--text-secondary);
   font-weight: 400;
   margin: 0;
+}
+
+.tags-section {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  flex-shrink: 0; /* 防止标签区被压缩 */
+}
+
+.filter-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-btn.back-btn {
+  background: var(--accent-light);
+  border-color: var(--accent-light);
+  color: white;
+}
+
+.filter-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.filter-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.markets-scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 10px;
+  min-height: 0;
+  /* 确保滚动条始终可见，即使内容不足 */
+  display: flex;
+  flex-direction: column;
+}
+
+/* 自定义滚动条样式 */
+.markets-scroll-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.markets-scroll-container::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.markets-scroll-container::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.markets-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
 }
 </style>
