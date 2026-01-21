@@ -67,6 +67,7 @@ public class MybatisGeneratorPlugin extends PluginAdapter {
     public boolean modelBaseRecordClassGenerated(TopLevelClass topLevelClass, IntrospectedTable introspectedTable) {
         // 添加import
         topLevelClass.addImportedType("lombok.Data");
+        topLevelClass.addImportedType("com.baomidou.mybatisplus.annotation.TableName");
         // 添加注解
         topLevelClass.addAnnotation("@Data");
         topLevelClass.addAnnotation("@TableName(\"" + introspectedTable.getFullyQualifiedTable() + "\")");

@@ -1,8 +1,11 @@
 package com.market.business.enums;
 
 /**
- * TODO 添加注释
+ * 枚举抽象
  * @author: echo
  * @date: 2026/1/21
- */public interface BaseEnum {
+ */
+public interface BaseEnum<T> {
+   T getCode();
+   String getDesc();
 }

@@ -145,6 +145,7 @@ public class AuthServiceImpl implements AuthService {
         String token = generateToken(user);
 
         return new LoginVO(
+                user.getId(),
                 token,
                 user.getUid(),
                 user.getNickname(),

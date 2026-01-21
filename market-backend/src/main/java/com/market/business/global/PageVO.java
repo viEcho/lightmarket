@@ -13,7 +13,7 @@ import java.util.List;
  */
 @Data
 @Schema(description = "分页结果")
-public class Page<T> {
+public class PageVO<T> {
 
     @Schema(description = "当前页码", example = "1")
     private int num;
@@ -33,11 +33,11 @@ public class Page<T> {
     @Schema(description = "是否有下一页（用于前端滚动加载）", example = "true")
     private boolean nextPage = true;
 
-    public Page(){
+    public PageVO(){
 
     }
 
-    public Page(int num, int size, int total) {
+    public PageVO(int num, int size, int total) {
         this.num = num;
         this.size = size;
         this.setTotal(total); // 使用 setTotal 方法自动计算 nextPage
@@ -53,7 +53,7 @@ public class Page<T> {
     }
 
     @SuppressWarnings("unchecked")
-    public Page<T> setList(List<T> pageList) {
+    public PageVO<T> setList(List<T> pageList) {
         this.list = pageList;
         return this;
     }
