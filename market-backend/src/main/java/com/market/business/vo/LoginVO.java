@@ -11,6 +11,7 @@ import lombok.Data;
 @Schema(description = "登录响应")
 @AllArgsConstructor
 public class LoginVO {
+    Long id;
 
     @Schema(description = "JWT访问令牌")
     String accessToken;

@@ -1,0 +1,33 @@
+CREATE TABLE `market`
+(
+    `id`                BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT COMMENT '自增主键',
+    `market_id`         VARCHAR(64)  NOT NULL COMMENT '市场唯一标识（对外ID）',
+    `user_id`           BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
+    `title`             VARCHAR(128) NOT NULL COMMENT '预测市场标题',
+    `description`       VARCHAR(512) DEFAULT NULL COMMENT '预测市场描述',
+    `category`          TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '市场分类',
+    `close_time`        DATETIME(3) NOT NULL COMMENT '市场截止时间',
+    `resolve_time`      DATETIME(3) NOT NULL COMMENT '最早可结算时间，默认为市场截止时间后24小时',
+    `oracle_source`     VARCHAR(128) NOT NULL DEFAULT 'API' COMMENT'预言机来源（如 UMA / API / 人工）',
+    `resolution_method` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '结算方式：0-AI裁决 1-人工',
+    `ai_model`          VARCHAR(40) DEFAULT NULL COMMENT 'AI裁决模型标识（逗号分隔）',
+    `tags`              VARCHAR(40) DEFAULT NULL COMMENT '市场标签（逗号分隔）',
+    `market_status`     TINYINT UNSIGNED NOT NULL COMMENT '市场状态：0-待审核，1-已拒绝，2-审核通过，3-已发布上链open，4-已关闭，5-裁决中，6-挑战中，7-已结算',
+    `base_liquidity`    DECIMAL(18,6) NOT NULL DEFAULT 0 COMMENT '基础流动性（默认USDC）',
+    `yes_price`         DECIMAL(6,4) NOT NULL COMMENT 'YES 当前价格（概率）',
+    `no_price`          DECIMAL(6,4) NOT NULL COMMENT 'NO 当前价格（概率）',
+    `resolved_outcome`  TINYINT UNSIGNED DEFAULT NULL COMMENT '最终结果：0-未结算 1-YES 2-NO 3-Invalid',
+    `total_volume`      DECIMAL(18,6) NOT NULL DEFAULT 0 COMMENT '累计成交量（USDC）',
+    `risk_status`       TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '风控状态：0-正常 1-冻结 2-调查中',
+    `weight`            INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '运营排序权重',
+    `chain_id`          INT UNSIGNED NOT NULL COMMENT '链ID（如 1-Ethereum 137-Polygon）',
+    `tx_hash`           VARCHAR(66) DEFAULT NULL COMMENT '创建市场的链上交易哈希',
+    `creator`           VARCHAR(64) NOT NULL COMMENT '市场创建人（用户ID或链上地址）',
+    `created_time`      DATETIME(3) NOT NULL COMMENT '创建时间',
+    `updated_time`      DATETIME(3) NOT NULL COMMENT '更新时间',
+    UNIQUE KEY `uk_market_id` (`market_id`),
+    KEY `idx_status` (`market_status`),
+    KEY `idx_close_time` (`close_time`),
+    KEY `idx_category` (`category`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4 COMMENT = '预测市场表';
