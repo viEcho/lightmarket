@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ethers } from 'ethers'
+import { post, postWithAuth } from '../utils/api'
 
 export const useUserStore = defineStore('user', () => {
   // State
@@ -60,16 +61,18 @@ export const useUserStore = defineStore('user', () => {
       // Get wallet address
       const address = accounts[0]
       walletAddress.value = address
-      isConnected.value = true
+      // 注意：不在这里设置 isConnected.value = true
+      // 要等到登录成功后再设置，确保右上角按钮在登录完成后才切换
 
       // Get network
       let network
       try {
         network = await provider.getNetwork()
-        chainId.value = network.chainId.toString()
+        // 保持为数字类型（后端需要 Integer），不转换为字符串
+        chainId.value = Number(network.chainId)
       } catch (err) {
         console.warn('Could not get network:', err)
-        chainId.value = 'Unknown'
+        chainId.value = null
       }
 
       // Get balance (may fail if RPC is busy, don't block connection)
@@ -93,6 +96,11 @@ export const useUserStore = defineStore('user', () => {
       // Perform signature login
       await performSignatureLogin(provider, address)
 
+      // 登录成功后才设置 isConnected = true
+      console.log('🔄 准备设置 isConnected = true, 当前值:', isConnected.value)
+      isConnected.value = true
+      console.log('✅ 已设置 isConnected = true')
+
       return true
     } catch (err) {
       console.error('Wallet connection error:', err)
@@ -106,70 +114,55 @@ export const useUserStore = defineStore('user', () => {
   // 签名登录流程
   const performSignatureLogin = async (provider, address) => {
     try {
-      // 1. 请求 nonce
+      // 1. 请求 nonce（添加 chainId 参数）
       console.log('📝 请求 nonce...')
-      const nonceResponse = await fetch('http://localhost:9999/api/user/nonce', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          walletAddress: address
-        })
+      const nonceData = await post('/user/nonce', {
+        walletAddress: address,
+        chainId: chainId.value
       })
 
-      if (!nonceResponse.ok) {
-        throw new Error('Failed to get nonce from server')
-      }
-
-      const nonceData = await nonceResponse.json()
-
-      if (nonceData.code !== 200 || !nonceData.data) {
+      if (!nonceData.data || !nonceData.data.nonce) {
         throw new Error('Invalid nonce response')
       }
 
       const nonce = nonceData.data.nonce
+      const message = nonceData.data.message // 使用后端返回的消息
       console.log('✅ 获取到 nonce:', nonce)
+      console.log('📋 待签名消息:', message)
 
       // 2. 请求签名
       const signer = await provider.getSigner()
-      const message = `Sign this message to verify your identity. Nonce: ${nonce}`
       console.log('🔐 请求签名...')
 
       const signature = await signer.signMessage(message)
       console.log('✅ 签名完成:', signature)
 
-      // 3. 提交签名登录
+      // 3. 提交签名登录（添加 chainId 参数）
       console.log('🚀 提交签名登录...')
-      const loginResponse = await fetch('http://localhost:9999/api/user/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          walletAddress: address,
-          signature: signature,
-          message: message
-        })
+      const loginData = await post('/user/login', {
+        walletAddress: address,
+        chainId: chainId.value,
+        signature: signature
       })
 
-      if (!loginResponse.ok) {
-        throw new Error('Failed to login')
-      }
-
-      const loginData = await loginResponse.json()
-
-      if (loginData.code !== 200) {
-        throw new Error(loginData.message || 'Login failed')
-      }
-
-      // 4. 保存用户信息
+      // 4. 保存用户信息（包含 accessToken）
       user.value = loginData.data
       localStorage.setItem('userInfo', JSON.stringify(loginData.data))
       localStorage.setItem('walletConnected', 'true')
       localStorage.setItem('walletAddress', address)
 
       console.log('✅ 登录成功!')
+      console.log('👤 用户信息:', {
+        uid: loginData.data.uid,
+        nickname: loginData.data.nickname,
+        walletAddress: loginData.data.walletAddress,
+        accessToken: loginData.data.accessToken,
+        avatar: loginData.data.avatar
+      })
+      console.log('📦 store.state:', {
+        isConnected: isConnected.value,
+        user: user.value
+      })
     } catch (err) {
       console.warn('⚠️ 签名登录失败:', err.message)
       console.warn('💡 后台服务可能未启动，使用离线模式')
@@ -177,11 +170,20 @@ export const useUserStore = defineStore('user', () => {
       // 后台服务不可用时的降级处理
       user.value = {
         walletAddress: address,
+        nickname: `${address.slice(0, 6)}...${address.slice(-4)}`,
+        avatar: null,
         createdAt: new Date().toISOString()
       }
       localStorage.setItem('userInfo', JSON.stringify(user.value))
       localStorage.setItem('walletConnected', 'true')
       localStorage.setItem('walletAddress', address)
+
+      // 即使降级也要设置为已连接状态
+      isConnected.value = true
+      console.log('📦 降级模式 store.state:', {
+        isConnected: isConnected.value,
+        user: user.value
+      })
     }
   }
 
@@ -189,18 +191,14 @@ export const useUserStore = defineStore('user', () => {
     try {
       // 调用后台退出登录接口（预留）
       if (walletAddress.value) {
-        await fetch('http://localhost:9999/api/user/logout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
+        try {
+          await postWithAuth('/user/logout', {
             walletAddress: walletAddress.value
           })
-        }).catch(err => {
+        } catch (err) {
           console.warn('退出登录接口调用失败:', err.message)
           // 即使接口调用失败，也继续执行本地退出逻辑
-        })
+        }
       }
     } catch (err) {
       console.warn('退出登录时发生错误:', err)
@@ -237,7 +235,8 @@ export const useUserStore = defineStore('user', () => {
         }).catch(err => console.error('Error getting balance:', err))
 
         provider.getNetwork().then(network => {
-          chainId.value = network.chainId.toString()
+          // 保持为数字类型
+          chainId.value = Number(network.chainId)
         }).catch(err => console.error('Error getting network:', err))
       }
     }

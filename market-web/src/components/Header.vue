@@ -65,11 +65,7 @@
         <div v-else class="user-section">
           <button class="avatar-button" @click="toggleUserMenu">
             <div class="user-avatar">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <circle cx="10" cy="10" r="10" fill="currentColor" fill-opacity="0.1"/>
-                <path d="M10 4C8.34315 4 7 5.34315 7 7C7 8.65685 8.34315 10 10 10C11.6569 10 13 8.65685 13 7C13 5.34315 11.6569 4 10 4Z" fill="currentColor"/>
-                <path d="M4 16C4 13.7909 5.79086 12 8 12H12C14.2091 12 16 13.7909 16 16V17H4V16Z" fill="currentColor"/>
-              </svg>
+              <span class="avatar-text">{{ getAvatarText() }}</span>
             </div>
           </button>
 
@@ -77,12 +73,9 @@
           <div v-if="showUserMenu" class="user-menu-popup" @click.stop>
             <div class="user-menu-header">
               <div class="user-menu-avatar">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <circle cx="10" cy="10" r="10" fill="currentColor" fill-opacity="0.1"/>
-                  <path d="M10 4C8.34315 4 7 5.34315 7 7C7 8.65685 8.34315 10 10 10C11.6569 10 13 8.65685 13 7C13 5.34315 11.6569 4 10 4Z" fill="currentColor"/>
-                  <path d="M4 16C4 13.7909 5.79086 12 8 12H12C14.2091 12 16 13.7909 16 16V17H4V16Z" fill="currentColor"/>
-                </svg>
+                <span class="avatar-text">{{ getAvatarText() }}</span>
               </div>
+              <div v-if="user?.nickname" class="user-nickname">{{ user.nickname }}</div>
             </div>
             <div class="user-menu-content">
               <div class="user-info-item">
@@ -125,12 +118,25 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import { storeToRefs } from 'pinia'
 
 const route = useRoute()
 const userStore = useUserStore()
 const showUserMenu = ref(false)
 
-const { isConnected, walletAddress, shortAddress, balance, chainId, isLoading } = userStore
+// 使用 storeToRefs 保持响应性
+const { isConnected, walletAddress, shortAddress, balance, chainId, isLoading, user } = storeToRefs(userStore)
+
+// 获取用户头像显示的文字（昵称首字母或钱包地址前两位）
+const getAvatarText = () => {
+  if (user.value?.nickname) {
+    return user.value.nickname.charAt(0).toUpperCase()
+  }
+  if (walletAddress.value) {
+    return walletAddress.value.slice(2, 4).toUpperCase()
+  }
+  return '?'
+}
 
 const handleConnect = async () => {
   const success = await userStore.connectWallet()
@@ -154,13 +160,13 @@ const handleRefreshBalance = async () => {
 
 const getNetworkName = (chainId) => {
   const networks = {
-    '1': 'Ethereum',
-    '5': 'Goerli',
-    '11155111': 'Sepolia',
-    '137': 'Polygon',
-    '80001': 'Mumbai',
-    '56': 'BSC',
-    '97': 'BSC Testnet'
+    1: 'Ethereum',
+    5: 'Goerli',
+    11155111: 'Sepolia',
+    137: 'Polygon',
+    80001: 'Mumbai',
+    56: 'BSC',
+    97: 'BSC Testnet'
   }
   return networks[chainId] || `Chain ${chainId}`
 }
@@ -348,6 +354,12 @@ onMounted(() => {
   color: white;
 }
 
+.avatar-text {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
 /* User Menu Popup */
 .user-menu-popup {
   position: absolute;
@@ -381,6 +393,12 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 12px;
+}
+
+.user-nickname {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .user-menu-avatar {
