@@ -13,10 +13,10 @@ import jakarta.validation.constraints.NotNull;
 public class UserCheckQuery {
 
     @NotBlank(message = "Wallet address is required")
-    @Schema(description = "钱包地址", required = true)
+    @Schema(description = "钱包地址")
     private String walletAddress;
 
     @NotNull(message = "Chain ID is required")
-    @Schema(description = "链ID (1=Ethereum, 137=Polygon, etc.)", required = true)
+    @Schema(description = "链ID (1=Ethereum, 137=Polygon, etc.)")
     private Integer chainId;
 }

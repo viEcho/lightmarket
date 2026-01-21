@@ -3,6 +3,7 @@ package com.market.business.utils;
 import com.market.business.enums.ResponseCodeEnum;
 import com.market.business.global.GlobalException;
 import com.market.business.global.Result;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 import org.springframework.util.StringUtils;
 import java.io.IOException;
@@ -14,11 +15,13 @@ import java.util.Objects;
 /**
  * 异常工具类
  */
+@Slf4j
 public class ExceptionUtil {
     /**
      * @description: 打印异常堆栈信息
      * @author: echo
      */
+    @SuppressWarnings("all")
     public static String getStackMessage(Exception e){
         // 流
         StringWriter sw = null;
@@ -44,14 +47,17 @@ public class ExceptionUtil {
                 pw.close();
             }
         }
-        return sw.toString();
+        assert sw != null;
+        String msg = sw.toString();
+        log.error("occur error:{}", msg);
+        return msg;
     }
     /**
      * @description: 自定义异常封装
      * 增加sql异常自定义返回 且截取Cause前的异常信息返回
      * @author: echo
      */
-    public static void checkResponse(Exception e, Result vo){
+    public static <R> void checkResponse(Exception e, Result<R> vo){
         vo.setSuccess(false);
         vo.setCode(ResponseCodeEnum.UNKNOWN_REASON_ERROR.getCode());
         vo.setMsg(ResponseCodeEnum.UNKNOWN_REASON_ERROR.getDesc());

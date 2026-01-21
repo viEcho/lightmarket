@@ -13,15 +13,15 @@ import jakarta.validation.constraints.NotNull;
 public class UserRegisterQuery {
 
     @NotBlank(message = "Wallet address is required")
-    @Schema(description = "钱包地址", required = true)
+    @Schema(description = "钱包地址")
     private String walletAddress;
 
     @NotNull(message = "Chain ID is required")
-    @Schema(description = "链ID", required = true)
+    @Schema(description = "链ID")
     private Integer chainId;
 
     @NotBlank(message = "Signature is required")
-    @Schema(description = "钱包签名", required = true)
+    @Schema(description = "钱包签名")
     private String signature;
 
     @Schema(description = "钱包类型 (metamask, walletconnect等)")

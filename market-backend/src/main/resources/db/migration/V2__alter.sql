@@ -1,0 +1,1 @@
+ALTER TABLE `user_nonce` ADD COLUMN formatted_expired_at VARCHAR(50) COMMENT '格式化的过期时间字符串（用于签名验证）' after expired_at;

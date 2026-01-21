@@ -15,7 +15,6 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
-
 /**
  * mybatis生成器插件
  *
@@ -70,6 +69,7 @@ public class MybatisGeneratorPlugin extends PluginAdapter {
         topLevelClass.addImportedType("lombok.Data");
         // 添加注解
         topLevelClass.addAnnotation("@Data");
+        topLevelClass.addAnnotation("@TableName(\"" + introspectedTable.getFullyQualifiedTable() + "\")");
         if (StringUtility.stringHasValue(introspectedTable.getRemarks())) {
             topLevelClass.addJavaDocLine("/**");
             topLevelClass.addJavaDocLine(" * " + introspectedTable.getRemarks());
@@ -85,8 +85,39 @@ public class MybatisGeneratorPlugin extends PluginAdapter {
             topLevelClass.addJavaDocLine(" * @date " + new SimpleDateFormat("yyyy/MM/dd").format(new Date()));
             topLevelClass.addJavaDocLine(" */");
         }
-        return true;
 
+        // 生成字段常量
+        generateFieldConstants(topLevelClass, introspectedTable);
+        return true;
+    }
+
+    /**
+     * 生成字段常量
+     */
+    private void generateFieldConstants(TopLevelClass topLevelClass, IntrospectedTable introspectedTable) {
+        for (IntrospectedColumn introspectedColumn : introspectedTable.getAllColumns()) {
+            String fieldName = introspectedColumn.getJavaProperty();
+            String constantName = camelToUnderscore(fieldName).toUpperCase();
+            String columnName = introspectedColumn.getActualColumnName();
+
+            FullyQualifiedJavaType type = new FullyQualifiedJavaType("String");
+            Field field = new Field(fieldName, type);
+            field.setVisibility(JavaVisibility.PUBLIC);
+            field.setStatic(true);
+            field.setFinal(true);
+            field.setName(constantName);
+            field.setType(type);
+            field.setInitializationString("\"" + columnName + "\"");
+
+            topLevelClass.addField(field);
+        }
+    }
+
+    /**
+     * 驼峰命名转下划线
+     */
+    private String camelToUnderscore(String camelCase) {
+        return camelCase.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase();
     }
 
     /**
