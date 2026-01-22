@@ -3,3 +3,5 @@
 target
 *.iml
 /market-web/
+.claude
+.github
