@@ -76,16 +76,17 @@ const logout = () => {
 
 <style scoped>
 .admin-layout {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: #f5f5f7;
+  overflow: hidden;
 }
 
 .admin-header {
   background: white;
   border-bottom: 1px solid #e5e5e5;
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  flex-shrink: 0;
 }
 
 .header-container {
@@ -186,8 +187,31 @@ const logout = () => {
 }
 
 .admin-content {
-  padding: 2rem;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.5rem 2rem;
   max-width: 1600px;
   margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 自定义滚动条样式 */
+.admin-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.admin-content::-webkit-scrollbar-track {
+  background: #f5f5f7;
+}
+
+.admin-content::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+.admin-content::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
 </style>

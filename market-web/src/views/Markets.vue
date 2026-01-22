@@ -1,7 +1,8 @@
 <template>
   <div class="markets-page">
     <div class="page-header">
-      <p class="page-subtitle">Trade on the outcomes of real-world events</p>
+      <h1 class="page-title">{{ isViewingMyMarkets ? 'Personal Markets' : 'Markets' }}</h1>
+      <p class="page-subtitle">{{ isViewingMyMarkets ? 'Manage the markets you create and participate in' : 'Trade on the outcomes of real-world events' }}</p>
     </div>
 
     <!-- 标签筛选区（固定，不滚动） -->
@@ -37,14 +38,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useMarkets } from '../composables/useMarkets'
 import MarketList from '../components/MarketList.vue'
 import { getOptions } from '../utils/api'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 // 使用 markets composable
@@ -159,8 +161,19 @@ onMounted(async () => {
   // 加载标签选项
   loadTags()
 
-  // 初始化加载市场数据
-  loadMarkets({ refresh: true })
+  // 检查URL参数，如果是filter=my，加载我的市场
+  if (route.query.filter === 'my') {
+    const userId = userStore.user?.userId
+    if (userId) {
+      loadMyMarkets({ userId, refresh: true })
+    } else {
+      // 如果未登录，跳转到首页
+      router.push('/markets')
+    }
+  } else {
+    // 初始化加载市场数据
+    loadMarkets({ refresh: true })
+  }
 
   // 监听返回所有市场事件
   window.addEventListener('back-to-all-markets', () => {
@@ -186,6 +199,21 @@ onMounted(async () => {
     console.log('[Markets] Scroll listener attached to container')
   } else {
     console.error('[Markets] Failed to attach scroll listener - container not found')
+  }
+})
+
+// 监听路由query参数变化
+watch(() => route.query.filter, (newFilter) => {
+  console.log('[Markets] Route query filter changed:', newFilter)
+  if (newFilter === 'my') {
+    const userId = userStore.user?.userId
+    if (userId) {
+      loadMyMarkets({ userId, refresh: true })
+    } else {
+      router.push('/markets')
+    }
+  } else {
+    backToAllMarkets()
   }
 })
 
@@ -215,7 +243,7 @@ const navigateTo = (page, param) => {
 .markets-page {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 3rem 2rem;
+  padding: 0rem 2rem;
   width: 100%;
   box-sizing: border-box;
   height: 100%;
@@ -225,20 +253,19 @@ const navigateTo = (page, param) => {
 }
 
 .page-header {
-  margin-bottom: 2rem;
+  margin-bottom: 0.75rem;
   flex-shrink: 0; /* 防止 header 被压缩 */
 }
 
 .page-title {
-  font-size: 2.5rem;
+  font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.025em;
-  margin-bottom: 0.75rem;
   color: var(--text-primary);
 }
 
 .page-subtitle {
-  font-size: 1.125rem;
+  font-size: 1rem;
   color: var(--text-secondary);
   font-weight: 400;
   margin: 0;

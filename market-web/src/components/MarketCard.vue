@@ -10,6 +10,9 @@
           >
             {{ tag.desc }}
           </span>
+          <span v-if="market.marketStatus !== undefined" class="status-badge" :class="getStatusClass(market.marketStatus)">
+            {{ getStatusText(market.marketStatus) }}
+          </span>
         </div>
         <span class="end-date">{{ formatDate(market.endTime) }}</span>
       </div>
@@ -18,6 +21,10 @@
       <p class="description">{{ market.description }}</p>
 
       <div class="card-stats">
+        <div class="stat-item" v-if="market.creator">
+          <span class="stat-label">Creator</span>
+          <span class="stat-value creator-address">{{ formatAddress(market.creator) }}</span>
+        </div>
         <div class="stat-item">
           <span class="stat-label">Volume</span>
           <span class="stat-value">${{ formatVolume(market.volume) }}</span>
@@ -27,22 +34,22 @@
       <div class="probability-section">
         <div class="probability-header">
           <span class="probability-label">Current Probability</span>
-          <span class="probability-value">{{ Math.round(market.yesPrice * 100) }}%</span>
+          <span class="probability-value">{{ Math.round(yesProbability * 100) }}%</span>
         </div>
         <div class="probability-bar">
-          <div class="probability-fill" :style="{ width: (market.yesPrice * 100) + '%' }"></div>
+          <div class="probability-fill" :style="{ width: (yesProbability * 100) + '%' }"></div>
         </div>
       </div>
     </div>
 
     <div class="card-actions">
-      <button class="btn-no" @click.stop="handleBet('no')">
-        <span class="btn-label">No</span>
-        <span class="btn-price">{{ Math.round((1 - market.yesPrice * 100)) }}¢</span>
-      </button>
       <button class="btn-yes" @click.stop="handleBet('yes')">
         <span class="btn-label">Yes</span>
         <span class="btn-price">{{ Math.round(market.yesPrice * 100) }}¢</span>
+      </button>
+      <button class="btn-no" @click.stop="handleBet('no')">
+        <span class="btn-label">No</span>
+        <span class="btn-price">{{ Math.round(market.noPrice * 100) }}¢</span>
       </button>
     </div>
   </div>
@@ -59,6 +66,18 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['bet', 'click'])
+
+// 计算Yes的概率 = yesPrice / (yesPrice + noPrice)，向下取整保留两位小数
+const yesProbability = computed(() => {
+  const yesPrice = props.market.yesPrice || 0
+  const noPrice = props.market.noPrice || 0
+  const total = yesPrice + noPrice
+
+  if (total === 0) return 0
+
+  // 计算概率，向下取整保留两位小数
+  return Math.floor((yesPrice / total) * 100) / 100
+})
 
 // 显示标签列表
 const displayTags = computed(() => {
@@ -98,6 +117,7 @@ const formatDate = (dateString) => {
 }
 
 const formatVolume = (volume) => {
+  if (!volume) return '0'
   if (volume >= 1000000) {
     return (volume / 1000000).toFixed(1) + 'M'
   }
@@ -105,6 +125,48 @@ const formatVolume = (volume) => {
     return (volume / 1000).toFixed(0) + 'K'
   }
   return volume.toString()
+}
+
+const formatAddress = (address) => {
+  if (!address) return ''
+  if (address.startsWith('0x')) {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`
+  }
+  // 如果不是以太坊地址，只显示前10个字符
+  if (address.length > 14) {
+    return `${address.slice(0, 10)}...`
+  }
+  return address
+}
+
+const getStatusText = (status) => {
+  const statusMap = {
+    0: '待审核',
+    1: '已拒绝',
+    2: '初审通过',
+    3: '终审通过',
+    4: '已发布',
+    5: '已关闭',
+    6: '裁决中',
+    7: '挑战中',
+    8: '已结算'
+  }
+  return statusMap[status] || `Status ${status}`
+}
+
+const getStatusClass = (status) => {
+  const classMap = {
+    0: 'status-pending',
+    1: 'status-rejected',
+    2: 'status-preliminary',
+    3: 'status-final',
+    4: 'status-active',
+    5: 'status-closed',
+    6: 'status-arbitrating',
+    7: 'status-challenging',
+    8: 'status-resolved'
+  }
+  return classMap[status] || 'status-unknown'
 }
 
 const handleCardClick = () => {
@@ -115,7 +177,7 @@ const handleBet = (type) => {
   emit('bet', {
     marketId: props.market.id,
     type,
-    price: type === 'yes' ? props.market.yesPrice : 1 - props.market.yesPrice
+    price: type === 'yes' ? props.market.yesPrice : props.market.noPrice
   })
 }
 </script>
@@ -168,6 +230,64 @@ const handleBet = (type) => {
   white-space: nowrap;
 }
 
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.status-pending {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.status-rejected {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.status-preliminary {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.status-final {
+  background: #E0E7FF;
+  color: #4338CA;
+}
+
+.status-active {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.status-closed {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.status-arbitrating {
+  background: #E0E7FF;
+  color: #4338CA;
+}
+
+.status-challenging {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.status-resolved {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.status-unknown {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
 .end-date {
   font-size: 0.875rem;
   color: var(--text-tertiary);
@@ -197,12 +317,21 @@ const handleBet = (type) => {
 
 .card-stats {
   margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .stat-item {
   display: flex;
   gap: 0.5rem;
   align-items: baseline;
+}
+
+.creator-address {
+  font-family: 'SF Mono', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.75rem;
+  opacity: 0.8;
 }
 
 .stat-label {
@@ -275,7 +404,7 @@ const handleBet = (type) => {
   gap: 0.25rem;
 }
 
-.btn-no {
+.btn-yes {
   border-right: 1px solid var(--border-color);
 }
 

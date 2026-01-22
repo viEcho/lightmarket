@@ -37,12 +37,6 @@ public class MarketVO {
     @Schema(description = "市场描述")
     private String description;
 
-    @Schema(description = "市场分类（枚举code）")
-    private String category;
-
-    @Schema(description = "市场分类描述")
-    private String categoryDesc;
-
     @Schema(description = "市场截止时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Date closeTime;
@@ -117,7 +111,6 @@ public class MarketVO {
         if (entity.getTags() != null) {
             vo.setTags(EnumUtil.convertCodesToOptions(entity.getTags(), TagEnum.class));
         }
-
         return vo;
     }
 }

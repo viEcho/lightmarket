@@ -8,11 +8,14 @@
   --border-color: #e5e7eb;
   --border-hover: #d1d5db;
   --accent: #0a0a0a;
+  --accent-color: #6366f1;
   --accent-light: #6366f1;
   --success: #10b981;
   --success-bg: #d1fae5;
   --danger: #ef4444;
   --danger-bg: #fee2e2;
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
   --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --card-shadow-hover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }

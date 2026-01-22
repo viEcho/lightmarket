@@ -10,35 +10,45 @@
       <button
         :class="['tab-button', { active: activeTab === 'pre-review' }]"
         @click="activeTab = 'pre-review'"
+        :disabled="isLoading"
       >
         <span class="tab-label">Pre-review</span>
-        <span class="tab-count">{{ getMarketsByStage('pre-review').length }}</span>
+        <span class="tab-count">{{ getStatusCount('pre-review') }}</span>
       </button>
       <button
         :class="['tab-button', { active: activeTab === 'final-review' }]"
         @click="activeTab = 'final-review'"
+        :disabled="isLoading"
       >
         <span class="tab-label">Final-review</span>
-        <span class="tab-count">{{ getMarketsByStage('final-review').length }}</span>
+        <span class="tab-count">{{ getStatusCount('final-review') }}</span>
       </button>
       <button
         :class="['tab-button', { active: activeTab === 'approved' }]"
         @click="activeTab = 'approved'"
+        :disabled="isLoading"
       >
         <span class="tab-label">Approved</span>
-        <span class="tab-count">{{ getMarketsByStatus('approved').length }}</span>
+        <span class="tab-count">{{ getStatusCount('approved') }}</span>
       </button>
       <button
         :class="['tab-button', { active: activeTab === 'rejected' }]"
         @click="activeTab = 'rejected'"
+        :disabled="isLoading"
       >
         <span class="tab-label">Rejected</span>
-        <span class="tab-count">{{ getMarketsByStatus('rejected').length }}</span>
+        <span class="tab-count">{{ getStatusCount('rejected') }}</span>
       </button>
     </div>
 
+    <!-- Loading 状态 -->
+    <div v-if="isLoading" class="loading-state">
+      <div class="spinner"></div>
+      <div class="loading-text">Loading markets...</div>
+    </div>
+
     <!-- Markets列表 -->
-    <div v-if="filteredMarkets.length > 0" class="markets-list">
+    <div v-else-if="filteredMarkets.length > 0" class="markets-list">
       <div
         v-for="market in filteredMarkets"
         :key="market.id"
@@ -46,7 +56,6 @@
       >
         <!-- Markets基本信息 -->
         <div class="market-info">
-          <div class="market-category">{{ getCategoryName(market.category) }}</div>
           <h3 class="market-title">{{ market.title }}</h3>
           <p class="market-description">{{ market.description }}</p>
 
@@ -94,7 +103,7 @@
           <!-- 标签 -->
           <div v-if="market.tags && market.tags.length > 0" class="market-tags">
             <span v-for="(tag, index) in market.tags" :key="index" class="tag">
-              {{ tag }}
+              {{ tag.desc }}
             </span>
           </div>
         </div>
@@ -271,7 +280,7 @@
     </div>
 
     <!-- 空状态 -->
-    <div v-else class="empty-state">
+    <div v-else-if="!isLoading" class="empty-state">
       <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
         <circle cx="32" cy="32" r="28" stroke="var(--border-color)" stroke-width="2"/>
         <path d="M32 20V32L40 40" stroke="var(--border-color)" stroke-width="2" stroke-linecap="round"/>
@@ -283,9 +292,9 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { mockMarkets } from '../data/markets';
+import { getAdminApproveList, approveMarket as approveMarketAPI } from '../utils/api';
 
 export default {
   name: 'ReviewMarket',
@@ -293,75 +302,115 @@ export default {
     const router = useRouter();
     const activeTab = ref('pre-review');
     const reviewMarkets = ref([]);
+    const statusCounts = ref({
+      preReview: 0,
+      finalReview: 0,
+      approved: 0,
+      rejected: 0
+    });
+    const isLoading = ref(false);
 
-    onMounted(() => {
-      // 加载待审核的Markets
+    // 监听 tab 切换，重新加载数据
+    watch(activeTab, (newTab) => {
       loadReviewMarkets();
     });
 
-    const loadReviewMarkets = () => {
-      // 从localStorage加载用户创建的Markets
-      const userCreated = JSON.parse(localStorage.getItem('userCreatedMarkets') || '[]');
+    onMounted(() => {
+      loadReviewMarkets();
+    });
 
-      // 添加一些模拟的审核数据
-      reviewMarkets.value = userCreated.map(market => ({
-        ...market,
-        duplicateCheck: checkDuplicates(market),
-        competingMarkets: getCompetingMarkets(market, userCreated),
-        criteria: {
-          topic: false,
-          resolvable: false,
-          source: false,
-          timeline: false
+    const loadReviewMarkets = async () => {
+      try {
+        isLoading.value = true;
+
+        // 将前端 tab 转换为后端 marketStatus
+        const statusMap = {
+          'pre-review': 0,
+          'final-review': 2,
+          'approved': 3,
+          'rejected': 1
+        };
+
+        const response = await getAdminApproveList({
+          marketStatus: statusMap[activeTab.value],
+          num: 1,
+          size: 10
+        });
+
+        if (response && response.data) {
+          // 转换后端数据为前端格式
+          reviewMarkets.value = response.data.list.map(market => {
+            // tags 和 aiModels 已经是 [{code:1,desc:"xxx"}] 格式
+            const categoryDesc = market.tags && market.tags.length > 0
+              ? market.tags[0].desc
+              : 'Other';
+
+            return {
+              id: market.marketId,
+              title: market.title,
+              description: market.description,
+              category: categoryDesc, // 使用第一个 tag 的 desc
+              createTime: market.createdTime ? new Date(market.createdTime).getTime() : Date.now(),
+              endTime: market.closeTime ? new Date(market.closeTime).getTime() : null,
+              stakeAmount: market.baseLiquidity || 0,
+              resolutionSource: market.oracleSource || '',
+              creator: market.creator || 'Unknown',
+              status: getStatusCode(market.marketStatus),
+              stage: getStageFromStatus(market.marketStatus),
+              tags: market.tags || [],           // 保持完整的 Option 数组
+              aiModels: market.aiModels || [],    // 保持完整的 Option 数组
+              criteria: {                         // 初始化审核标准
+                topic: false,
+                resolvable: false,
+                source: false,
+                timeline: false
+              },
+              quickRejectReason: '',
+              duplicateCheck: {
+                hasDuplicate: false,
+                duplicates: []
+              }
+            };
+          });
+
+          // 更新各状态统计数量
+          if (response.data.ext) {
+            statusCounts.value = response.data.ext;
+          }
         }
-      }));
+      } catch (error) {
+        console.error('Failed to load review markets:', error);
+        // 如果 API 调用失败，使用空数组
+        reviewMarkets.value = [];
+      } finally {
+        isLoading.value = false;
+      }
     };
 
-    const checkDuplicates = (market) => {
-      // 检查与已发布Markets的重复
-      const approvedDuplicates = mockMarkets.filter(m =>
-        m.status === 'approved' &&
-        m.title.toLowerCase().includes(market.title.toLowerCase().split(' ')[0])
-      );
-
-      // 检查与待审核Markets的重复
-      const pendingDuplicates = reviewMarkets.value.filter(m =>
-        m.id !== market.id &&
-        m.title.toLowerCase().includes(market.title.toLowerCase().split(' ')[0])
-      );
-
-      const hasDuplicate = approvedDuplicates.length > 0 || pendingDuplicates.length > 0;
-
-      return {
-        hasDuplicate,
-        duplicates: [...approvedDuplicates, ...pendingDuplicates]
+    // 将后端 marketStatus 转换为前端 status
+    const getStatusCode = (marketStatus) => {
+      const statusMap = {
+        0: 'pending',
+        1: 'rejected',
+        2: 'pending',
+        3: 'approved'
       };
+      return statusMap[marketStatus] || 'pending';
     };
 
-    const getCompetingMarkets = (market, allMarkets) => {
-      // 获取同类话题的所有申请，按质押金额排序
-      const competing = allMarkets
-        .filter(m =>
-          m.id !== market.id &&
-          m.stage === 'pre-review' &&
-          m.category === market.category
-        )
-        .sort((a, b) => b.stakeAmount - a.stakeAmount)
-        .slice(0, 3);
-
-      return [market, ...competing].sort((a, b) => b.stakeAmount - a.stakeAmount);
+    // 将后端 marketStatus 转换为前端 stage
+    const getStageFromStatus = (marketStatus) => {
+      const stageMap = {
+        0: 'pre-review',
+        1: 'rejected',
+        2: 'final-review',
+        3: 'published'
+      };
+      return stageMap[marketStatus] || 'pre-review';
     };
 
     const filteredMarkets = computed(() => {
-      if (activeTab.value === 'pre-review') {
-        return getMarketsByStage('pre-review');
-      } else if (activeTab.value === 'final-review') {
-        return getMarketsByStage('final-review');
-      } else if (activeTab.value === 'approved') {
-        return getMarketsByStatus('approved');
-      } else {
-        return getMarketsByStatus('rejected');
-      }
+      return reviewMarkets.value;
     });
 
     const getMarketsByStage = (stage) => {
@@ -373,16 +422,8 @@ export default {
     };
 
     const getCategoryName = (category) => {
-      const categories = {
-        crypto: 'Crypto',
-        technology: 'Technology',
-        politics: 'Politics',
-        sports: 'Sports',
-        finance: 'Finance',
-        entertainment: 'Entertainment',
-        other: 'Other'
-      };
-      return categories[category] || category;
+      // category 已经是名称了（如 'Crypto'），直接返回
+      return category || 'Other';
     };
 
     const formatDate = (timestamp) => {
@@ -427,62 +468,53 @@ export default {
         market.criteria.timeline;
     };
 
-    // 审核操作
-    const promoteToFinalReview = (market) => {
-      if (confirm(`确定将"${market.title}"进入Final-review环节吗？`)) {
-        market.stage = 'final-review';
-        saveMarketChanges();
-        alert('已进入Final-review环节！');
-      }
-    };
-
-    const approveMarket = (market) => {
-      if (!allCriteriaChecked(market)) {
-        alert('请完成所有Review Criteria Check！');
-        return;
-      }
-
-      if (confirm(`Confirm to approve？Markets将立即发布！`)) {
-        market.status = 'approved';
-        market.stage = 'published';
-        market.reviewTime = Date.now();
-        market.reviewNote = '通过Final-review';
-        saveMarketChanges();
-        alert('Markets已发布！');
-      }
-    };
-
-    const rejectMarket = (market, reason) => {
-      const finalReason = market.quickRejectReason || reason;
-
-      if (!finalReason) {
-        alert('请选择或输入Reject原因！');
-        return;
-      }
-
-      if (confirm(`确定Reject"${market.title}"吗？\n原因：${finalReason}`)) {
-        market.status = 'rejected';
-        market.reviewTime = Date.now();
-        market.reviewNote = finalReason;
-        saveMarketChanges();
-        alert('MarketsRejected！');
-      }
-    };
-
-    const saveMarketChanges = () => {
-      // 保存到localStorage
-      const userCreated = JSON.parse(localStorage.getItem('userCreatedMarkets') || '[]');
-
-      // 更新对应的Markets
-      reviewMarkets.value.forEach(market => {
-        const index = userCreated.findIndex(m => m.id === market.id);
-        if (index !== -1) {
-          userCreated[index] = market;
+    // 审核操作 - 调用后端 API
+    const promoteToFinalReview = async (market) => {
+      try {
+        // Status 2 = 初审通过
+        const response = await approveMarketAPI(market.id, 2);
+        if (response && response.success) {
+          // 重新加载数据
+          await loadReviewMarkets();
+        } else {
+          alert('操作失败: ' + (response?.message || '未知错误'));
         }
-      });
+      } catch (error) {
+        console.error('Promote to final review failed:', error);
+        alert('操作失败: ' + error.message);
+      }
+    };
 
-      localStorage.setItem('userCreatedMarkets', JSON.stringify(userCreated));
-      loadReviewMarkets();
+    const approveMarket = async (market) => {
+      try {
+        // Status 3 = 终审通过
+        const response = await approveMarketAPI(market.id, 3);
+        if (response && response.success) {
+          // 重新加载数据
+          await loadReviewMarkets();
+        } else {
+          alert('操作失败: ' + (response?.message || '未知错误'));
+        }
+      } catch (error) {
+        console.error('Approve market failed:', error);
+        alert('操作失败: ' + error.message);
+      }
+    };
+
+    const rejectMarket = async (market, reason) => {
+      try {
+        // Status 1 = 已拒绝
+        const response = await approveMarketAPI(market.id, 1);
+        if (response && response.success) {
+          // 重新加载数据
+          await loadReviewMarkets();
+        } else {
+          alert('操作失败: ' + (response?.message || '未知错误'));
+        }
+      } catch (error) {
+        console.error('Reject market failed:', error);
+        alert('操作失败: ' + error.message);
+      }
     };
 
     const viewMarket = (marketId) => {
@@ -500,8 +532,20 @@ export default {
       return 'Basic';
     };
 
+    // 用于模板中获取各状态数量
+    const getStatusCount = (tab) => {
+      const countMap = {
+        'pre-review': statusCounts.value.preReview || 0,
+        'final-review': statusCounts.value.finalReview || 0,
+        'approved': statusCounts.value.approved || 0,
+        'rejected': statusCounts.value.rejected || 0
+      };
+      return countMap[tab] || 0;
+    };
+
     return {
       activeTab,
+      isLoading,
       filteredMarkets,
       getMarketsByStage,
       getMarketsByStatus,
@@ -515,7 +559,8 @@ export default {
       rejectMarket,
       viewMarket,
       formatNumber,
-      getStakeTier
+      getStakeTier,
+      getStatusCount
     };
   }
 };
@@ -525,7 +570,7 @@ export default {
 .review-market-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 0px 20px;
 }
 
 .review-header {
@@ -1063,6 +1108,41 @@ export default {
 .empty-desc {
   font-size: 14px;
   color: var(--text-secondary);
+}
+
+/* Loading 状态 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent-light);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  margin-top: 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.tab-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* 响应式 */

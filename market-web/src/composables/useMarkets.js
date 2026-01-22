@@ -58,8 +58,7 @@ export function useMarkets() {
 
       const requestParams = {
         num: currentPage.value,
-        size: pageSize.value,
-        marketStatus: 3
+        size: pageSize.value
       }
 
       // 添加标签筛选（如果有）
@@ -154,12 +153,13 @@ export function useMarkets() {
     const statusMap = {
       0: 'pending',
       1: 'rejected',
-      2: 'approved',
-      3: 'published',
-      4: 'closed',
-      5: 'resolving',
-      6: 'challenged',
-      7: 'settled'
+      2: 'preliminary',
+      3: 'final',
+      4: 'active',
+      5: 'closed',
+      6: 'arbitrating',
+      7: 'challenging',
+      8: 'settled'
     }
     return statusMap[marketStatus] || 'pending'
   }

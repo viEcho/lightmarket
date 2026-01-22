@@ -31,7 +31,9 @@
         </router-link>
       </nav>
       <div class="header-actions">
+        <!-- Make market Button (Visible when connected) -->
         <button
+          v-if="isConnected"
           class="btn-secondary"
           @click="$router.push('/create-market')"
         >
@@ -230,6 +232,12 @@ onMounted(() => {
 
   // Load saved wallet connection
   userStore.loadUserFromStorage()
+
+  // 监听来自其他页面的连接钱包请求
+  window.addEventListener('connect-wallet', async () => {
+    console.log('[Header] connect-wallet event received')
+    await handleConnect()
+  })
 })
 </script>
 

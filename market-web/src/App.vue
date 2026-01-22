@@ -2,7 +2,7 @@
   <div class="app">
     <!-- 公共Header - 只在非admin页面显示 -->
     <Header v-if="!isAdminPage" />
-    <div class="app-content">
+    <div class="app-content" :class="{ 'admin-page': isAdminPage }">
       <router-view />
     </div>
   </div>
@@ -37,5 +37,9 @@ const isAdminPage = computed(() => {
   flex-direction: column;
   padding-top: 80px; /* 为 fixed Header 留出空间 */
   box-sizing: border-box;
+}
+
+.app-content.admin-page {
+  padding-top: 0; /* admin页面不需要顶部padding */
 }
 </style>

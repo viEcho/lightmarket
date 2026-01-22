@@ -4,7 +4,25 @@
       <h1 class="page-title">Create New Prediction Market</h1>
       <p class="page-subtitle">Stake tokens to create a prediction event. Once approved, staked tokens become liquidity source</p>
 
-      <form @submit.prevent="handleSubmit" class="market-form">
+      <!-- 未登录提示 -->
+      <div v-if="!isConnected" class="login-prompt">
+        <div class="login-prompt-content">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" class="login-icon">
+            <rect x="8" y="16" width="32" height="24" rx="2" stroke="currentColor" stroke-width="2"/>
+            <path d="M16 16V12C16 7.58172 19.5817 4 24 4C28.4183 4 32 7.58172 32 12V16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="24" cy="28" r="4" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <h2 class="login-title">Connect Your Wallet</h2>
+          <p class="login-description">You need to connect your wallet to create a prediction market</p>
+          <button type="button" @click="handleConnect" class="btn-connect-large" :disabled="isLoading">
+            <span v-if="isLoading">Connecting...</span>
+            <span v-else>Connect Wallet</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 创建市场表单 -->
+      <form v-else @submit.prevent="handleSubmit" class="market-form">
         <!-- Market Title -->
         <div class="form-group">
           <label for="title">
@@ -63,20 +81,6 @@
             required
           ></textarea>
           <p class="help-text">Ensure the description is clear, results are verifiable and have clear resolution criteria</p>
-        </div>
-
-        <!-- Category Selection -->
-        <div class="form-group">
-          <label for="category">
-            <span class="label-text">Category</span>
-            <span class="required">*</span>
-          </label>
-          <select id="category" v-model.number="formData.category" class="form-select" required>
-            <option :value="null">Select Category</option>
-            <option v-for="tag in availableTags" :key="tag.code" :value="tag.code">
-              {{ tag.desc }}
-            </option>
-          </select>
         </div>
 
         <!-- End Time -->
@@ -162,15 +166,15 @@
             Loading AI models...
           </div>
           <div v-else class="ai-grid">
-            <label v-for="ai in availableAI" :key="ai.code" class="ai-checkbox-label">
+            <label v-for="ai in availableAI" :key="ai.code" class="ai-checkbox-label" :class="{ 'ai-selected': isAISelected(ai.code) }">
               <input
                 type="checkbox"
                 :value="ai.code"
-                :checked="selectedAIList.indexOf(ai.code) !== -1"
+                :checked="isAISelected(ai.code)"
                 @change="handleAICheck(ai.code, $event.target.checked)"
                 class="ai-checkbox"
               />
-              <span class="ai-checkbox-custom"></span>
+              <span class="ai-checkbox-custom" :class="{ 'checked': isAISelected(ai.code) }"></span>
               <span class="ai-name">{{ ai.desc }}</span>
             </label>
           </div>
@@ -191,15 +195,16 @@
               v-for="tag in availableTags"
               :key="tag.code"
               class="tag-checkbox-label"
+              :class="{ 'tag-selected': isTagSelected(tag.code) }"
             >
               <input
                 type="checkbox"
                 :value="tag.code"
-                :checked="selectedTagsList.indexOf(tag.code) !== -1"
+                :checked="isTagSelected(tag.code)"
                 @change="handleTagCheck(tag.code, $event.target.checked)"
                 class="tag-checkbox"
               />
-              <span class="tag-checkbox-custom"></span>
+              <span class="tag-checkbox-custom" :class="{ 'checked': isTagSelected(tag.code) }"></span>
               <span class="tag-name">{{ tag.desc }}</span>
             </label>
           </div>
@@ -241,19 +246,50 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onErrorCaptured } from 'vue';
 import { useRouter } from 'vue-router';
 import { mockMarkets } from '../data/markets';
 import { getOptions, createMarket } from '../utils/api';
+import { useUserStore } from '../stores/user';
 
 export default {
   name: 'CreateMarket',
   setup() {
     const router = useRouter();
+    const userStore = useUserStore();
+
+    // 捕获组件渲染错误
+    onErrorCaptured((err, instance, info) => {
+      console.error('=== Vue Render Error ===');
+      console.error('Error:', err);
+      console.error('Component:', instance);
+      console.error('Info:', info);
+      console.error('========================');
+      // 返回false阻止错误继续传播
+      return false;
+    });
+
+    // 检查登录状态
+    const isConnected = computed(() => !!userStore.user?.walletAddress);
+    const isLoading = ref(false);
+
+    // 连接钱包
+    const handleConnect = async () => {
+      try {
+        isLoading.value = true;
+        // 触发Header中的连接钱包事件
+        const event = new CustomEvent('connect-wallet');
+        window.dispatchEvent(event);
+      } catch (error) {
+        console.error('Failed to connect wallet:', error);
+      } finally {
+        isLoading.value = false;
+      }
+    };
+
     const formData = ref({
       title: '',
       description: '',
-      category: null,  // 数字code
       closeTime: '',   // ISO 8601格式
       baseLiquidity: 1000,
       oracleSource: '',
@@ -265,26 +301,75 @@ export default {
     const selectedAIList = ref([]);
     const selectedTagsList = ref([]);
 
+    // 辅助函数：检查是否被选中
+    const isAISelected = (code) => {
+      try {
+        if (code === null || code === undefined || code === '') {
+          return false;
+        }
+        const numCode = Number(code);
+        if (isNaN(numCode) || !isFinite(numCode)) {
+          return false;
+        }
+        return selectedAIList.value.includes(numCode);
+      } catch (error) {
+        console.error('Error in isAISelected:', error, 'code:', code);
+        return false;
+      }
+    };
+
+    const isTagSelected = (code) => {
+      try {
+        if (code === null || code === undefined || code === '') {
+          return false;
+        }
+        const numCode = Number(code);
+        if (isNaN(numCode) || !isFinite(numCode)) {
+          return false;
+        }
+        return selectedTagsList.value.includes(numCode);
+      } catch (error) {
+        console.error('Error in isTagSelected:', error, 'code:', code);
+        return false;
+      }
+    };
+
     // 手动处理checkbox变化
     const handleAICheck = (aiCode, checked) => {
-      if (checked) {
-        // 使用 Set 来避免重复，并处理类型问题
-        const currentSet = new Set(selectedAIList.value);
-        currentSet.add(Number(aiCode));
-        selectedAIList.value = Array.from(currentSet);
-      } else {
-        selectedAIList.value = selectedAIList.value.filter(code => Number(code) !== Number(aiCode));
+      try {
+        const numCode = Number(aiCode);
+
+        if (checked) {
+          // 检查是否已存在
+          if (!selectedAIList.value.includes(numCode)) {
+            selectedAIList.value = [...selectedAIList.value, numCode];
+            console.log('AI added:', numCode, 'Total:', selectedAIList.value.length);
+          }
+        } else {
+          selectedAIList.value = selectedAIList.value.filter(code => code === numCode);
+          console.log('AI removed:', numCode, 'Total:', selectedAIList.value.length);
+        }
+      } catch (error) {
+        console.error('Error in handleAICheck:', error);
       }
     };
 
     const handleTagCheck = (tagCode, checked) => {
-      if (checked) {
-        // 使用 Set 来避免重复，并处理类型问题
-        const currentSet = new Set(selectedTagsList.value);
-        currentSet.add(Number(tagCode));
-        selectedTagsList.value = Array.from(currentSet);
-      } else {
-        selectedTagsList.value = selectedTagsList.value.filter(code => Number(code) !== Number(tagCode));
+      try {
+        const numCode = Number(tagCode);
+
+        if (checked) {
+          // 检查是否已存在
+          if (!selectedTagsList.value.includes(numCode)) {
+            selectedTagsList.value = [...selectedTagsList.value, numCode];
+            console.log('Tag added:', numCode, 'Total:', selectedTagsList.value.length);
+          }
+        } else {
+          selectedTagsList.value = selectedTagsList.value.filter(code => code === numCode);
+          console.log('Tag removed:', numCode, 'Total:', selectedTagsList.value.length);
+        }
+      } catch (error) {
+        console.error('Error in handleTagCheck:', error);
       }
     };
 
@@ -331,13 +416,21 @@ export default {
 
         if (response && response.data) {
           if (response.data.tag && Array.isArray(response.data.tag)) {
-            availableTags.value = response.data.tag;
+            // 确保 code 是数字类型
+            availableTags.value = response.data.tag.map(tag => ({
+              ...tag,
+              code: Number(tag.code)
+            }));
           } else {
             availableTags.value = defaultTags;
           }
 
           if (response.data.ai && Array.isArray(response.data.ai)) {
-            availableAI.value = response.data.ai;
+            // 确保 code 是数字类型
+            availableAI.value = response.data.ai.map(ai => ({
+              ...ai,
+              code: Number(ai.code)
+            }));
           } else {
             availableAI.value = defaultAI;
           }
@@ -346,6 +439,7 @@ export default {
           availableAI.value = defaultAI;
         }
       } catch (err) {
+        console.error('Failed to load options:', err);
         availableTags.value = defaultTags;
         availableAI.value = defaultAI;
       } finally {
@@ -456,7 +550,6 @@ export default {
         const submitData = {
           title: formData.value.title,
           description: formData.value.description,
-          category: formData.value.category,
           closeTime: closeTimeISO,
           baseLiquidity: formData.value.baseLiquidity,
           oracleSource: formData.value.oracleSource,
@@ -464,17 +557,18 @@ export default {
           tags: selectedTagsList.value.join(',')
         };
 
+        console.log('[CreateMarket] Submitting data:', submitData);
+        console.log('[CreateMarket] User ID:', userId);
+
         // 调用后端 API
         const response = await createMarket(submitData, userId);
+        console.log('[CreateMarket] API Response:', response);
 
         if (response && response.data) {
-          alert(`Market created successfully! Market ID: ${response.data}`);
-
           // 重置表单
           formData.value = {
             title: '',
             description: '',
-            category: null,
             closeTime: '',
             baseLiquidity: 1000,
             oracleSource: '',
@@ -485,8 +579,8 @@ export default {
           selectedTagsList.value = [];
           duplicateMarket.value = null;
 
-          // 返回市场列表
-          router.push('/markets');
+          // 跳转到我的市场页面
+          router.push({ path: '/markets', query: { filter: 'my' } });
         } else {
           throw new Error('Invalid response');
         }
@@ -516,12 +610,17 @@ export default {
       availableTags,
       availableAI,
       isLoadingOptions,
+      isAISelected,
+      isTagSelected,
       handleAICheck,
       handleTagCheck,
       checkDuplicate,
       goToMarket,
       handleSubmit,
-      handleCancel
+      handleCancel,
+      isConnected,
+      isLoading,
+      handleConnect
     };
   }
 };
@@ -536,6 +635,66 @@ export default {
   overflow-y: auto;
   overflow-x: hidden;
   box-sizing: border-box;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* 未登录提示 */
+.login-prompt {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  padding: 60px 20px;
+}
+
+.login-prompt-content {
+  text-align: center;
+  max-width: 480px;
+}
+
+.login-icon {
+  color: var(--accent-light);
+  margin-bottom: 24px;
+}
+
+.login-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.login-description {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin: 0 0 32px 0;
+  line-height: 1.5;
+}
+
+.btn-connect-large {
+  width: 100%;
+  max-width: 280px;
+  padding: 16px 24px;
+  background: var(--accent-light);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-connect-large:hover:not(:disabled) {
+  background: #4F46E5;
+  transform: translateY(-1px);
+}
+
+.btn-connect-large:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* 自定义滚动条样式 */
@@ -562,6 +721,8 @@ export default {
   border-radius: 16px;
   padding: 40px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  display: block !important;
+  visibility: visible !important;
 }
 
 .page-title {
@@ -749,6 +910,7 @@ export default {
 }
 
 .tag-checkbox-label {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -788,12 +950,12 @@ export default {
   transition: all 0.2s;
 }
 
-.tag-checkbox:checked + .tag-checkbox-custom {
+.tag-checkbox-custom.checked {
   background: var(--accent-light);
   border-color: var(--accent-light);
 }
 
-.tag-checkbox:checked + .tag-checkbox-custom::after {
+.tag-checkbox-custom.checked::after {
   content: '';
   position: absolute;
   left: 6px;
@@ -834,6 +996,7 @@ export default {
 }
 
 .ai-checkbox-label {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -868,12 +1031,12 @@ export default {
   transition: all 0.2s;
 }
 
-.ai-checkbox:checked + .ai-checkbox-custom {
+.ai-checkbox-custom.checked {
   background: var(--accent-light);
   border-color: var(--accent-light);
 }
 
-.ai-checkbox:checked + .ai-checkbox-custom::after {
+.ai-checkbox-custom.checked::after {
   content: '';
   position: absolute;
   left: 6px;

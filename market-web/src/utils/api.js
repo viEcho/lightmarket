@@ -166,8 +166,7 @@ export const getOptions = (types) => {
 export const getMarketList = (params = {}) => {
   const defaultParams = {
     num: 1,
-    size: 6,
-    marketStatus: 3
+    size: 6
   }
   const finalParams = { ...defaultParams, ...params }
 
@@ -250,4 +249,58 @@ export const createMarket = (data, userId) => {
     },
     body: formData.toString()
   }, true)
+}
+
+/**
+ * POST 请求查询管理员审核市场列表（使用 form 表单）
+ * @param {Object} params - 查询参数
+ * @param {number} params.marketStatus - 市场状态：0-待审核，1-已拒绝，2-审核通过，3-已发布
+ * @param {number} params.num - 页码，从1开始，默认1
+ * @param {number} params.size - 每页大小，默认10
+ * @returns {Promise<Object>} 响应数据
+ */
+export const getAdminApproveList = (params = {}) => {
+  const defaultParams = {
+    num: 1,
+    size: 10
+  }
+  const finalParams = { ...defaultParams, ...params }
+
+  // 将对象转为表单格式
+  const formData = new URLSearchParams()
+  Object.keys(finalParams).forEach(key => {
+    if (finalParams[key] !== undefined && finalParams[key] !== null) {
+      formData.append(key, finalParams[key])
+    }
+  })
+
+  return request('/admin/approveList', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: formData.toString()
+  }, false)
+}
+
+/**
+ * GET 请求审批市场
+ * @param {string} marketId - 市场ID
+ * @param {number} status - 目标状态：1-已拒绝，2-初审通过，3-终审通过
+ * @returns {Promise<Object>} 响应数据
+ */
+export const approveMarket = (marketId, status) => {
+  return request(`/admin/approve?marketId=${encodeURIComponent(marketId)}&status=${status}`, {
+    method: 'GET'
+  }, false)
+}
+
+/**
+ * GET 请求获取管理员统计数据
+ * @returns {Promise<Object>} 响应数据，包含 totalMarkets, activeMarkets, pendingReview, totalLiquidity
+ */
+export const getAdminStatistics = () => {
+  return request('/admin/sum', {
+    method: 'GET'
+  }, false)
 }
