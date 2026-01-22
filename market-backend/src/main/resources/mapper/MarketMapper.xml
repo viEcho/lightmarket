@@ -7,7 +7,6 @@
     <result column="user_id" jdbcType="BIGINT" property="userId" />
     <result column="title" jdbcType="VARCHAR" property="title" />
     <result column="description" jdbcType="VARCHAR" property="description" />
-    <result column="category" jdbcType="TINYINT" property="category" />
     <result column="close_time" jdbcType="TIMESTAMP" property="closeTime" />
     <result column="resolve_time" jdbcType="TIMESTAMP" property="resolveTime" />
     <result column="oracle_source" jdbcType="VARCHAR" property="oracleSource" />
@@ -29,141 +28,10 @@
     <result column="updated_time" jdbcType="TIMESTAMP" property="updatedTime" />
   </resultMap>
   <sql id="Base_Column_List">
-    id, market_id, user_id, title, description, category, close_time, resolve_time, oracle_source, 
+    id, market_id, user_id, title, description, close_time, resolve_time, oracle_source,
     resolution_method, ai_model, tags, market_status, base_liquidity, yes_price, no_price, 
     resolved_outcome, total_volume, risk_status, weight, chain_id, tx_hash, creator, 
     created_time, updated_time
   </sql>
-  <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
-    select 
-    <include refid="Base_Column_List" />
-    from market
-    where id = #{id,jdbcType=BIGINT}
-  </select>
-  <insert id="insert" parameterType="com.market.business.entity.Market">
-    insert into market (id, market_id, user_id, 
-      title, description, category, 
-      close_time, resolve_time, oracle_source, 
-      resolution_method, ai_model, tags, 
-      market_status, base_liquidity, yes_price, 
-      no_price, resolved_outcome, total_volume, 
-      risk_status, weight, chain_id, 
-      tx_hash, creator, created_time, 
-      updated_time)
-    values (#{id,jdbcType=BIGINT}, #{marketId,jdbcType=VARCHAR}, #{userId,jdbcType=BIGINT}, 
-      #{title,jdbcType=VARCHAR}, #{description,jdbcType=VARCHAR}, #{category,jdbcType=TINYINT}, 
-      #{closeTime,jdbcType=TIMESTAMP}, #{resolveTime,jdbcType=TIMESTAMP}, #{oracleSource,jdbcType=VARCHAR}, 
-      #{resolutionMethod,jdbcType=TINYINT}, #{aiModel,jdbcType=VARCHAR}, #{tags,jdbcType=VARCHAR}, 
-      #{marketStatus,jdbcType=TINYINT}, #{baseLiquidity,jdbcType=DECIMAL}, #{yesPrice,jdbcType=DECIMAL}, 
-      #{noPrice,jdbcType=DECIMAL}, #{resolvedOutcome,jdbcType=TINYINT}, #{totalVolume,jdbcType=DECIMAL}, 
-      #{riskStatus,jdbcType=TINYINT}, #{weight,jdbcType=INTEGER}, #{chainId,jdbcType=INTEGER}, 
-      #{txHash,jdbcType=VARCHAR}, #{creator,jdbcType=VARCHAR}, #{createdTime,jdbcType=TIMESTAMP}, 
-      #{updatedTime,jdbcType=TIMESTAMP})
-  </insert>
-  <update id="updateByPrimaryKeySelective" parameterType="com.market.business.entity.Market">
-    update market
-    <set>
-      <if test="marketId != null">
-        market_id = #{marketId,jdbcType=VARCHAR},
-      </if>
-      <if test="userId != null">
-        user_id = #{userId,jdbcType=BIGINT},
-      </if>
-      <if test="title != null">
-        title = #{title,jdbcType=VARCHAR},
-      </if>
-      <if test="description != null">
-        description = #{description,jdbcType=VARCHAR},
-      </if>
-      <if test="category != null">
-        category = #{category,jdbcType=TINYINT},
-      </if>
-      <if test="closeTime != null">
-        close_time = #{closeTime,jdbcType=TIMESTAMP},
-      </if>
-      <if test="resolveTime != null">
-        resolve_time = #{resolveTime,jdbcType=TIMESTAMP},
-      </if>
-      <if test="oracleSource != null">
-        oracle_source = #{oracleSource,jdbcType=VARCHAR},
-      </if>
-      <if test="resolutionMethod != null">
-        resolution_method = #{resolutionMethod,jdbcType=TINYINT},
-      </if>
-      <if test="aiModel != null">
-        ai_model = #{aiModel,jdbcType=VARCHAR},
-      </if>
-      <if test="tags != null">
-        tags = #{tags,jdbcType=VARCHAR},
-      </if>
-      <if test="marketStatus != null">
-        market_status = #{marketStatus,jdbcType=TINYINT},
-      </if>
-      <if test="baseLiquidity != null">
-        base_liquidity = #{baseLiquidity,jdbcType=DECIMAL},
-      </if>
-      <if test="yesPrice != null">
-        yes_price = #{yesPrice,jdbcType=DECIMAL},
-      </if>
-      <if test="noPrice != null">
-        no_price = #{noPrice,jdbcType=DECIMAL},
-      </if>
-      <if test="resolvedOutcome != null">
-        resolved_outcome = #{resolvedOutcome,jdbcType=TINYINT},
-      </if>
-      <if test="totalVolume != null">
-        total_volume = #{totalVolume,jdbcType=DECIMAL},
-      </if>
-      <if test="riskStatus != null">
-        risk_status = #{riskStatus,jdbcType=TINYINT},
-      </if>
-      <if test="weight != null">
-        weight = #{weight,jdbcType=INTEGER},
-      </if>
-      <if test="chainId != null">
-        chain_id = #{chainId,jdbcType=INTEGER},
-      </if>
-      <if test="txHash != null">
-        tx_hash = #{txHash,jdbcType=VARCHAR},
-      </if>
-      <if test="creator != null">
-        creator = #{creator,jdbcType=VARCHAR},
-      </if>
-      <if test="createdTime != null">
-        created_time = #{createdTime,jdbcType=TIMESTAMP},
-      </if>
-      <if test="updatedTime != null">
-        updated_time = #{updatedTime,jdbcType=TIMESTAMP},
-      </if>
-    </set>
-    where id = #{id,jdbcType=BIGINT}
-  </update>
-  <update id="updateByPrimaryKey" parameterType="com.market.business.entity.Market">
-    update market
-    set market_id = #{marketId,jdbcType=VARCHAR},
-      user_id = #{userId,jdbcType=BIGINT},
-      title = #{title,jdbcType=VARCHAR},
-      description = #{description,jdbcType=VARCHAR},
-      category = #{category,jdbcType=TINYINT},
-      close_time = #{closeTime,jdbcType=TIMESTAMP},
-      resolve_time = #{resolveTime,jdbcType=TIMESTAMP},
-      oracle_source = #{oracleSource,jdbcType=VARCHAR},
-      resolution_method = #{resolutionMethod,jdbcType=TINYINT},
-      ai_model = #{aiModel,jdbcType=VARCHAR},
-      tags = #{tags,jdbcType=VARCHAR},
-      market_status = #{marketStatus,jdbcType=TINYINT},
-      base_liquidity = #{baseLiquidity,jdbcType=DECIMAL},
-      yes_price = #{yesPrice,jdbcType=DECIMAL},
-      no_price = #{noPrice,jdbcType=DECIMAL},
-      resolved_outcome = #{resolvedOutcome,jdbcType=TINYINT},
-      total_volume = #{totalVolume,jdbcType=DECIMAL},
-      risk_status = #{riskStatus,jdbcType=TINYINT},
-      weight = #{weight,jdbcType=INTEGER},
-      chain_id = #{chainId,jdbcType=INTEGER},
-      tx_hash = #{txHash,jdbcType=VARCHAR},
-      creator = #{creator,jdbcType=VARCHAR},
-      created_time = #{createdTime,jdbcType=TIMESTAMP},
-      updated_time = #{updatedTime,jdbcType=TIMESTAMP}
-    where id = #{id,jdbcType=BIGINT}
-  </update>
+
 </mapper>

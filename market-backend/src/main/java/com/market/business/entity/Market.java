@@ -41,11 +41,6 @@ public class Market {
     private String description;
 
     /**
-     * 市场分类
-     */
-    private Byte category;
-
-    /**
      * 市场截止时间
      */
     private Date closeTime;
@@ -76,7 +71,7 @@ public class Market {
     private String tags;
 
     /**
-     * 市场状态：0-待审核，1-已拒绝，2-审核通过，3-已发布上链open，4-已关闭，5-裁决中，6-挑战中，7-已结算
+     * 市场状态：0-待审核，1-已拒绝，2-初审通过，3-终审通过，4-已发布上链open，5-已关闭，6-裁决中，7-挑战中，8-已结算
      */
     private Byte marketStatus;
 
@@ -130,6 +125,9 @@ public class Market {
      */
     private String creator;
 
+    /** 审批tips */
+    private String approve_tips;
+
     /**
      * 创建时间
      */
@@ -140,6 +138,8 @@ public class Market {
      */
     private Date updatedTime;
 
+
+
     public static final String ID = "id";
 
     public static final String MARKET_ID = "market_id";
@@ -149,8 +149,6 @@ public class Market {
     public static final String TITLE = "title";
 
     public static final String DESCRIPTION = "description";
-
-    public static final String CATEGORY = "category";
 
     public static final String CLOSE_TIME = "close_time";
 
@@ -185,6 +183,8 @@ public class Market {
     public static final String TX_HASH = "tx_hash";
 
     public static final String CREATOR = "creator";
+
+    public static final String APPROVE_TIPS = "approve_tips";
 
     public static final String CREATED_TIME = "created_time";
 

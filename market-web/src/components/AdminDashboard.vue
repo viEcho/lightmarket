@@ -64,12 +64,6 @@
         My Managed Markets
       </button>
       <button
-        :class="['tab-button', { active: activeTab === 'rewards' }]"
-        @click="activeTab = 'rewards'"
-      >
-        Liquidity Rewards
-      </button>
-      <button
         :class="['tab-button', { active: activeTab === 'settled' }]"
         @click="activeTab = 'settled'"
       >
@@ -77,57 +71,114 @@
       </button>
     </div>
 
+    <!-- 市场详情弹窗 -->
+    <div v-if="showDetailModal" class="modal-overlay" @click="closeModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h2 v-if="selectedMarket" class="modal-title">{{ selectedMarket.title }}</h2>
+          <button @click="closeModal" class="modal-close">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div v-if="selectedMarket" class="modal-body">
+          <div class="detail-section">
+            <p class="detail-description">{{ selectedMarket.description }}</p>
+          </div>
+
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-label">Status</span>
+              <span :class="['detail-value', 'status-badge', getStatusClass(selectedMarket.marketStatus)]">
+                {{ getStatusText(selectedMarket.marketStatus) }}
+              </span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Creator</span>
+              <span class="detail-value">{{ selectedMarket.creator || 'Unknown' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Created Time</span>
+              <span class="detail-value">{{ formatDate(selectedMarket.createdTime) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Close Time</span>
+              <span class="detail-value">{{ formatDate(selectedMarket.closeTime) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Base Liquidity</span>
+              <span class="detail-value">{{ formatNumber(selectedMarket.baseLiquidity) }} IMKT</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Total Volume</span>
+              <span class="detail-value">{{ formatNumber(selectedMarket.totalVolume) }} IMKT</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Oracle Source</span>
+              <span class="detail-value">{{ selectedMarket.oracleSource || 'N/A' }}</span>
+            </div>
+          </div>
+
+          <div v-if="selectedMarket.tags && selectedMarket.tags.length > 0" class="detail-section">
+            <h4 class="detail-subtitle">Tags</h4>
+            <div class="tags-list">
+              <span v-for="tag in selectedMarket.tags" :key="tag.code" class="detail-tag">
+                {{ tag.desc }}
+              </span>
+            </div>
+          </div>
+
+          <div v-if="selectedMarket.aiModels && selectedMarket.aiModels.length > 0" class="detail-section">
+            <h4 class="detail-subtitle">AI Models</h4>
+            <div class="tags-list">
+              <span v-for="ai in selectedMarket.aiModels" :key="ai.code" class="detail-tag">
+                {{ ai.desc }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 管理的市场列表 -->
     <div v-if="activeTab === 'managed'" class="managed-markets-section">
       <h2 class="section-title">My Managed Markets</h2>
-      <p class="section-desc">As creator, you are responsible for settling these markets</p>
+      <p class="section-desc">As admin, you are responsible for settling these markets</p>
 
       <div v-if="managedMarkets.length > 0" class="markets-grid">
         <div
           v-for="market in managedMarkets"
-          :key="market.id"
+          :key="market.marketId"
           class="market-card"
         >
           <div class="market-header">
-            <span class="market-category">{{ getCategoryName(market.category) }}</span>
-            <span :class="['market-status', market.status]">
-              {{ getStatusText(market.status) }}
+            <span class="market-category">{{ formatTags(market.tags) || '其他' }}</span>
+            <span :class="['market-status', getStatusClass(market.marketStatus)]">
+              {{ getStatusText(market.marketStatus) }}
             </span>
           </div>
           <h3 class="market-title">{{ market.title }}</h3>
           <div class="market-stats">
             <div class="stat">
               <span class="stat-label">流动性</span>
-              <span class="stat-value">{{ formatNumber(market.liquidity) }} IMKT</span>
+              <span class="stat-value">{{ formatNumber(market.baseLiquidity) }} IMKT</span>
             </div>
             <div class="stat">
               <span class="stat-label">交易量</span>
-              <span class="stat-value">{{ formatNumber(market.volume) }} IMKT</span>
+              <span class="stat-value">{{ formatNumber(market.totalVolume) }} IMKT</span>
             </div>
             <div class="stat">
               <span class="stat-label">剩余时间</span>
-              <span class="stat-value">{{ getTimeRemaining(market.endTime) }}</span>
-            </div>
-          </div>
-          <div class="market-rewards">
-            <div class="reward-item">
-              <span class="reward-label">Estimated Reward</span>
-              <span class="reward-value">{{ calculateReward(market) }} IMKT</span>
+              <span class="stat-value">{{ getTimeRemaining(market.closeTime) }}</span>
             </div>
           </div>
           <div class="market-actions">
             <button
-              @click="viewMarket(market.id)"
+              @click="viewMarket(market)"
               class="action-btn view"
             >
               View Details
-            </button>
-            <button
-              v-if="canSettle(market)"
-              @click="settleMarket(market)"
-              class="action-btn settle"
-            >
-              Settle Market
             </button>
           </div>
         </div>
@@ -146,97 +197,40 @@
       </div>
     </div>
 
-    <!-- Liquidity Rewards -->
-    <div v-if="activeTab === 'rewards'" class="rewards-section">
-      <h2 class="section-title">Liquidity Rewards</h2>
-      <p class="section-desc">After market settles, you receive trading fee rewards</p>
-
-      <div v-if="rewardHistory.length > 0" class="rewards-list">
-        <div class="reward-summary-card">
-          <div class="summary-item">
-            <span class="summary-label">Total Rewards Earned</span>
-            <span class="summary-value">{{ totalRewards }} IMKT</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Pending Rewards</span>
-            <span class="summary-value pending">{{ pendingRewards }} IMKT</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Claimed Rewards</span>
-            <span class="summary-value">{{ claimedRewards }} IMKT</span>
-          </div>
-        </div>
-
-        <div class="reward-history">
-          <h3 class="history-title">Reward History</h3>
-          <div class="history-list">
-            <div
-              v-for="reward in rewardHistory"
-              :key="reward.id"
-              class="history-item"
-            >
-              <div class="history-info">
-                <div class="history-market">{{ reward.marketTitle }}</div>
-                <div class="history-date">{{ formatDate(reward.settledAt) }}</div>
-              </div>
-              <div :class="['history-amount', reward.status]">
-                +{{ reward.amount }} IMKT
-              </div>
-              <div class="history-status">
-                {{ reward.status === 'claimed' ? '已领取' : '待领取' }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div v-else class="empty-state">
-        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-          <path d="M32 4L16 20V56H48V20L32 4Z" stroke="var(--border-color)" stroke-width="2" stroke-linejoin="round"/>
-          <path d="M32 24V40M32 48H32.01" stroke="var(--border-color)" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-        <div class="empty-title">No reward records yet</div>
-        <div class="empty-desc">成功Settle Market后将获得Liquidity Rewards</div>
-      </div>
-    </div>
-
     <!-- Settled Markets -->
     <div v-if="activeTab === 'settled'" class="settled-section">
       <h2 class="section-title">Settled Markets</h2>
-      <p class="section-desc">View markets you have settled</p>
+      <p class="section-desc">View markets which were settled</p>
 
       <div v-if="settledMarkets.length > 0" class="settled-list">
         <div
           v-for="market in settledMarkets"
-          :key="market.id"
+          :key="market.marketId"
           class="settled-card"
         >
           <div class="settled-info">
-            <div class="settled-category">{{ getCategoryName(market.category) }}</div>
+            <div class="settled-tags">
+              <template v-if="market.tags && market.tags.length > 0">
+                <span v-for="tag in market.tags" :key="tag.code" class="settled-tag">
+                  {{ tag.desc }}
+                </span>
+              </template>
+              <span v-else class="settled-tag">其他</span>
+            </div>
             <h3 class="settled-title">{{ market.title }}</h3>
-            <div class="settled-result">
-              <span class="result-label">Resolution Result：</span>
-              <span :class="['result-value', market.outcome]">
-                {{ market.outcome === 'yes' ? 'YES' : 'NO' }}
-              </span>
+            <div class="settled-time">
+              Settled {{ formatDate(market.updatedTime) }}
             </div>
           </div>
           <div class="settled-stats">
             <div class="settled-stat">
               <span class="stat-label">交易量</span>
-              <span class="stat-value">{{ formatNumber(market.volume) }} IMKT</span>
+              <span class="stat-value">{{ formatNumber(market.totalVolume) }} IMKT</span>
             </div>
             <div class="settled-stat">
-              <span class="stat-label">Participants</span>
-              <span class="stat-value">{{ market.participants || 0 }}</span>
+              <span class="stat-label">流动性</span>
+              <span class="stat-value">{{ formatNumber(market.baseLiquidity) }} IMKT</span>
             </div>
-            <div class="settled-stat">
-              <span class="stat-label">奖励</span>
-              <span class="stat-value reward">{{ calculateReward(market) }} IMKT</span>
-            </div>
-          </div>
-          <div class="settled-time">
-            Settled {{ formatDate(market.settledAt) }}
           </div>
         </div>
       </div>
@@ -254,9 +248,9 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { mockMarkets } from '../data/markets';
+import { getAdminStatistics, getAdminApproveList } from '../utils/api';
 
 export default {
   name: 'AdminDashboard',
@@ -264,92 +258,84 @@ export default {
     const router = useRouter();
     const activeTab = ref('managed');
     const managedMarkets = ref([]);
-    const rewardHistory = ref([]);
     const settledMarkets = ref([]);
+    const showDetailModal = ref(false);
+    const selectedMarket = ref(null);
+
+    // 统计数据
+    const totalMarkets = ref(0);
+    const activeMarkets = ref(0);
+    const pendingMarkets = ref(0);
+    const totalLiquidity = ref(0);
 
     onMounted(() => {
-      loadData();
+      loadStatistics();
+      loadManagedMarkets();
     });
 
-    const loadData = () => {
-      // 加载用户创建的市场
-      const userCreated = JSON.parse(localStorage.getItem('userCreatedMarkets') || '[]');
-      managedMarkets.value = userCreated;
+    // 监听tab切换，只在切换到settled时才加载数据
+    watch(activeTab, (newTab) => {
+      if (newTab === 'settled' && settledMarkets.value.length === 0) {
+        loadSettledMarkets();
+      }
+    });
 
-      // 加载已结算的市场
-      settledMarkets.value = userCreated.filter(m => m.status === 'settled');
-
-      // 加载Reward History（模拟数据）
-      const savedRewards = JSON.parse(localStorage.getItem('rewardHistory') || '[]');
-      if (savedRewards.length > 0) {
-        rewardHistory.value = savedRewards;
-      } else {
-        // 创建一些模拟奖励数据
-        rewardHistory.value = [
-          {
-            id: 'reward-1',
-            marketId: 'market-1',
-            marketTitle: '比特币价格在2024年12月31日会超过10万美元吗？',
-            amount: '125.50',
-            status: 'claimed',
-            settledAt: Date.now() - 86400000 * 7
-          },
-          {
-            id: 'reward-2',
-            marketId: 'market-2',
-            marketTitle: '以太坊将在2024年通过POS转换吗？',
-            amount: '89.30',
-            status: 'pending',
-            settledAt: Date.now() - 86400000 * 3
-          }
-        ];
-        localStorage.setItem('rewardHistory', JSON.stringify(rewardHistory.value));
+    // 加载统计数据
+    const loadStatistics = async () => {
+      try {
+        const response = await getAdminStatistics();
+        if (response.success && response.data) {
+          totalMarkets.value = response.data.totalMarkets || 0;
+          activeMarkets.value = response.data.activeMarkets || 0;
+          pendingMarkets.value = response.data.pendingReview || 0;
+          totalLiquidity.value = response.data.totalLiquidity || 0;
+        }
+      } catch (error) {
+        console.error('Failed to load statistics:', error);
       }
     };
 
-    // 统计数据
-    const totalMarkets = computed(() => {
-      return mockMarkets.length + managedMarkets.value.length;
-    });
+    // 加载管理的市场（非审批拒绝的市场）
+    const loadManagedMarkets = async () => {
+      try {
+        const response = await getAdminApproveList({
+          num: 1,
+          size: 10,
+          excludeRejected: true
+        });
+        if (response.success && response.data) {
+          managedMarkets.value = response.data.list || [];
+        }
+      } catch (error) {
+        console.error('Failed to load managed markets:', error);
+      }
+    };
 
-    const activeMarkets = computed(() => {
-      const mockApproved = mockMarkets.filter(m => m.status === 'approved' || !m.status).length;
-      const userApproved = managedMarkets.value.filter(m => m.status === 'approved').length;
-      return mockApproved + userApproved;
-    });
-
-    const pendingMarkets = computed(() => {
-      return managedMarkets.value.filter(m => m.status === 'pending').length;
-    });
-
-    const totalLiquidity = computed(() => {
-      const mockLiquidity = mockMarkets.reduce((sum, m) => sum + (m.liquidity || 0), 0);
-      const userLiquidity = managedMarkets.value.reduce((sum, m) => sum + (m.liquidity || 0), 0);
-      return mockLiquidity + userLiquidity;
-    });
-
-    const totalRewards = computed(() => {
-      return rewardHistory.value.reduce((sum, r) => sum + parseFloat(r.amount), 0).toFixed(2);
-    });
-
-    const pendingRewards = computed(() => {
-      return rewardHistory.value
-        .filter(r => r.status === 'pending')
-        .reduce((sum, r) => sum + parseFloat(r.amount), 0)
-        .toFixed(2);
-    });
-
-    const claimedRewards = computed(() => {
-      return rewardHistory.value
-        .filter(r => r.status === 'claimed')
-        .reduce((sum, r) => sum + parseFloat(r.amount), 0)
-        .toFixed(2);
-    });
+    // 加载已结算的市场
+    const loadSettledMarkets = async () => {
+      try {
+        const response = await getAdminApproveList({
+          num: 1,
+          size: 10,
+          marketStatus: 8
+        });
+        if (response.success && response.data) {
+          settledMarkets.value = response.data.list || [];
+        }
+      } catch (error) {
+        console.error('Failed to load settled markets:', error);
+      }
+    };
 
     // 辅助方法
     const formatNumber = (num) => {
       if (!num) return '0';
       return num.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    };
+
+    const formatTags = (tags) => {
+      if (!tags || !Array.isArray(tags)) return '';
+      return tags.map(tag => tag.desc).join(', ');
     };
 
     const getCategoryName = (category) => {
@@ -367,10 +353,15 @@ export default {
 
     const getStatusText = (status) => {
       const statusMap = {
-        'pending': '审核中',
-        'approved': '活跃',
-        'rejected': '已拒绝',
-        'settled': '已结算'
+        0: '待审核',
+        1: '已拒绝',
+        2: '初审通过',
+        3: '终审通过',
+        4: '已发布',
+        5: '已关闭',
+        6: '裁决中',
+        7: '挑战中',
+        8: '已结算'
       };
       return statusMap[status] || status;
     };
@@ -397,19 +388,19 @@ export default {
       return '即将结束';
     };
 
-    const calculateReward = (market) => {
-      // 假设奖励是交易量的10%
-      if (!market.volume) return '0';
-      return (market.volume * 0.1).toFixed(2);
-    };
-
     const canSettle = (market) => {
-      return market.endTime && Date.now() > market.endTime && market.status === 'approved';
+      return market.closeTime && Date.now() > new Date(market.closeTime).getTime() && market.marketStatus === 4;
     };
 
     // 操作方法
-    const viewMarket = (marketId) => {
-      router.push(`/market/${marketId}`);
+    const viewMarket = (market) => {
+      selectedMarket.value = market;
+      showDetailModal.value = true;
+    };
+
+    const closeModal = () => {
+      showDetailModal.value = false;
+      selectedMarket.value = null;
     };
 
     const createMarket = () => {
@@ -420,55 +411,60 @@ export default {
       const outcome = confirm(`Settle Market：${market.title}\n\nPlease select result. Confirm = YES, Cancel = NO`);
 
       if (outcome !== null) {
-        market.outcome = outcome ? 'yes' : 'no';
-        market.status = 'settled';
-        market.settledAt = Date.now();
-
-        // 保存更改
-        const userCreated = JSON.parse(localStorage.getItem('userCreatedMarkets') || '[]');
-        const index = userCreated.findIndex(m => m.id === market.id);
-        if (index !== -1) {
-          userCreated[index] = market;
-          localStorage.setItem('userCreatedMarkets', JSON.stringify(userCreated));
-        }
-
-        // 添加奖励记录
-        const reward = {
-          id: `reward-${Date.now()}`,
-          marketId: market.id,
-          marketTitle: market.title,
-          amount: calculateReward(market),
-          status: 'pending',
-          settledAt: Date.now()
-        };
-        rewardHistory.value.unshift(reward);
-        localStorage.setItem('rewardHistory', JSON.stringify(rewardHistory.value));
-
-        alert('Market settled successfully! Rewards will be distributed within 24 hours。');
-        loadData();
+        // TODO: 调用结算 API
+        alert('Market settlement feature coming soon!');
       }
+    };
+
+    const getStatusClass = (status) => {
+      const classMap = {
+        0: 'pending',
+        1: 'rejected',
+        2: 'review',
+        3: 'approved',
+        4: 'active',
+        5: 'closed',
+        6: 'resolving',
+        7: 'challenging',
+        8: 'settled'
+      };
+      return classMap[status] || 'pending';
+    };
+
+    const getOutcomeClass = (outcome) => {
+      if (outcome === 1) return 'yes';
+      if (outcome === 2) return 'no';
+      return 'invalid';
+    };
+
+    const getOutcomeText = (outcome) => {
+      if (outcome === 1) return 'YES';
+      if (outcome === 2) return 'NO';
+      return 'Invalid';
     };
 
     return {
       activeTab,
       managedMarkets,
       settledMarkets,
-      rewardHistory,
+      showDetailModal,
+      selectedMarket,
       totalMarkets,
       activeMarkets,
       pendingMarkets,
       totalLiquidity,
-      totalRewards,
-      pendingRewards,
-      claimedRewards,
       formatNumber,
+      formatTags,
       getCategoryName,
       getStatusText,
+      getStatusClass,
+      getOutcomeClass,
+      getOutcomeText,
       formatDate,
       getTimeRemaining,
-      calculateReward,
       canSettle,
       viewMarket,
+      closeModal,
       createMarket,
       settleMarket
     };
@@ -624,9 +620,39 @@ export default {
   color: #F59E0B;
 }
 
+.market-status.rejected {
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+}
+
+.market-status.review {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3B82F6;
+}
+
 .market-status.approved {
   background: rgba(34, 197, 94, 0.1);
   color: #22C55E;
+}
+
+.market-status.active {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22C55E;
+}
+
+.market-status.closed {
+  background: rgba(107, 114, 128, 0.1);
+  color: #6B7280;
+}
+
+.market-status.resolving {
+  background: rgba(168, 85, 247, 0.1);
+  color: #A855F7;
+}
+
+.market-status.challenging {
+  background: rgba(236, 72, 153, 0.1);
+  color: #EC4899;
 }
 
 .market-status.settled {
@@ -670,27 +696,6 @@ export default {
   color: var(--text-primary);
 }
 
-.market-rewards {
-  padding: 12px;
-  background: rgba(139, 92, 246, 0.1);
-  border-radius: 8px;
-}
-
-.reward-item {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-}
-
-.reward-label {
-  color: var(--text-secondary);
-}
-
-.reward-value {
-  font-weight: 700;
-  color: var(--accent-light);
-}
-
 .market-actions {
   display: flex;
   gap: 8px;
@@ -727,101 +732,6 @@ export default {
   background: #7C3AED;
 }
 
-/* 奖励区块 */
-.reward-summary-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 24px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-.summary-item {
-  text-align: center;
-}
-
-.summary-label {
-  display: block;
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-}
-
-.summary-value {
-  display: block;
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.summary-value.pending {
-  color: #F59E0B;
-}
-
-.history-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 16px 0;
-}
-
-.history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.history-item {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 16px;
-  display: grid;
-  grid-template-columns: 2fr auto auto;
-  gap: 16px;
-  align-items: center;
-}
-
-.history-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.history-market {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.history-date {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.history-amount {
-  font-size: 18px;
-  font-weight: 700;
-  text-align: right;
-}
-
-.history-amount.claimed {
-  color: #22C55E;
-}
-
-.history-amount.pending {
-  color: #F59E0B;
-}
-
-.history-status {
-  font-size: 12px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
 /* Settled Markets */
 .settled-list {
   display: flex;
@@ -835,8 +745,8 @@ export default {
   border-radius: 12px;
   padding: 20px;
   display: grid;
-  grid-template-columns: 2fr 1fr auto;
-  gap: 20px;
+  grid-template-columns: 2fr 1fr;
+  gap: 60px;
   align-items: center;
 }
 
@@ -846,15 +756,19 @@ export default {
   gap: 8px;
 }
 
-.settled-category {
-  display: inline-block;
+.settled-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.settled-tag {
   padding: 4px 12px;
-  background: var(--input-bg);
+  background: var(--accent-light);
+  color: white;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary);
-  width: fit-content;
 }
 
 .settled-title {
@@ -863,34 +777,6 @@ export default {
   color: var(--text-primary);
   margin: 0;
   line-height: 1.4;
-}
-
-.settled-result {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
-
-.result-label {
-  color: var(--text-secondary);
-}
-
-.result-value {
-  padding: 4px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.result-value.yes {
-  background: rgba(34, 197, 94, 0.1);
-  color: #22C55E;
-}
-
-.result-value.no {
-  background: rgba(239, 68, 68, 0.1);
-  color: #EF4444;
 }
 
 .settled-stats {
@@ -905,15 +791,9 @@ export default {
   font-size: 13px;
 }
 
-.settled-stat .stat-value.reward {
-  color: var(--accent-light);
-  font-weight: 700;
-}
-
 .settled-time {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
-  white-space: nowrap;
 }
 
 /* 空状态 */
@@ -959,6 +839,152 @@ export default {
   transform: translateY(-1px);
 }
 
+/* Modal 弹窗 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background: var(--card-bg);
+  border-radius: 16px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-category {
+  display: inline-block;
+  padding: 4px 12px;
+  background: var(--accent-light);
+  color: white;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.detail-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+}
+
+.detail-description {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.detail-subtitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.detail-value {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+  width: fit-content;
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-tag {
+  padding: 6px 12px;
+  background: var(--accent-light);
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .stats-section {
@@ -969,17 +995,17 @@ export default {
     grid-template-columns: 1fr;
   }
 
-  .reward-summary-card {
-    grid-template-columns: 1fr;
-  }
-
-  .history-item {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-
   .settled-card {
     grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-content {
+    max-height: 90vh;
   }
 }
 </style>

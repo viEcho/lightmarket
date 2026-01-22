@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.market.business.entity.Market;
+import com.market.business.entity.User;
 import com.market.business.entity.UserMarket;
 import com.market.business.global.PageVO;
 import com.market.business.mapper.MarketMapper;
+import com.market.business.mapper.UserMapper;
 import com.market.business.mapper.UserMarketMapper;
 import com.market.business.query.MarketAddQuery;
 import com.market.business.query.MarketPageQuery;
@@ -14,6 +16,7 @@ import com.market.business.service.MarketService;
 import com.market.business.vo.MarketVO;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -37,6 +40,8 @@ public class MarketServiceImpl implements MarketService {
 
     @Resource
     private UserMarketMapper userMarketMapper;
+    @Autowired
+    private UserMapper userMapper;
 
     @Override
     public PageVO<MarketVO> findPage(MarketPageQuery query) {
@@ -123,7 +128,7 @@ public class MarketServiceImpl implements MarketService {
 
         List<MarketVO> voList = marketIds.stream()
                 .map(marketMap::get)
-                .filter(m -> m != null)
+                .filter(Objects::nonNull)
                 .map(MarketVO::fromEntity)
                 .collect(Collectors.toList());
 
@@ -143,6 +148,7 @@ public class MarketServiceImpl implements MarketService {
         Date resolveTime = new Date(closeTime.getTime() + 24 * 60 * 60 * 1000L); // +24小时
 
         // 2. 生成唯一 marketId
+        User user = userMapper.selectById(userId);
         String marketId = generateMarketId();
 
         // 3. 创建 Market 实体（字段名与数据库表一致）
@@ -151,7 +157,6 @@ public class MarketServiceImpl implements MarketService {
         market.setUserId(userId);
         market.setTitle(query.getTitle());
         market.setDescription(query.getDescription());
-        market.setCategory(query.getCategory().byteValue());
         market.setCloseTime(closeTime);
         market.setResolveTime(resolveTime);
         market.setOracleSource(query.getOracleSource());
@@ -167,7 +172,7 @@ public class MarketServiceImpl implements MarketService {
         market.setRiskStatus((byte) 0); // 0-正常
         market.setWeight(0);
         market.setChainId(1); // 默认 Ethereum
-        market.setCreator(String.valueOf(userId));
+        market.setCreator(user.getUid());
         market.setCreatedTime(new Date());
         market.setUpdatedTime(new Date());
 
@@ -179,10 +184,9 @@ public class MarketServiceImpl implements MarketService {
         userMarket.setUserId(userId);
         userMarket.setMarketId(marketId);
         userMarket.setCreatedTime(new Date());
+        userMarket.setUpdatedTime(new Date());
+        userMarket.setTotalPay(BigDecimal.ZERO);
         userMarketMapper.insert(userMarket);
-
-        log.info("Market created successfully: marketId={}, userId={}, title={}",
-                marketId, userId, query.getTitle());
 
         return marketId;
     }

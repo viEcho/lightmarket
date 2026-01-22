@@ -27,8 +27,8 @@ public class MarketPageQuery {
     @JsonProperty("tagCode")
     private String tagCode;
 
-    @Schema(description = "市场状态：0-待审核，1-已拒绝，2-审核通过，3-已发布，4-已关闭，5-裁决中，6-挑战中，7-已结算")
-    private Integer marketStatus = 3;
+    @Schema(description = "市场状态：0-待审核，1-已拒绝，2-初审通过，3-终审通过，4-已发布上链open，5-已关闭，6-裁决中，7-挑战中，8-已结算")
+    private Integer marketStatus = 4;
 
     @Schema(description = "搜索关键词")
     private String keyword;

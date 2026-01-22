@@ -26,6 +26,9 @@ public class Result<R> implements Serializable {
     @Schema(description = "返回的数据")
     private R data;
 
+    @Schema(description = "返回的扩展数据")
+    private Object ext;
+
     public Result() {
         this.success = ResponseCodeEnum.SUCCESS.getSuccess();
         this.code = ResponseCodeEnum.SUCCESS.getCode();
@@ -151,6 +154,14 @@ public class Result<R> implements Serializable {
      */
     public Result<R> data(R data) {
         this.data = data;
+        return this;
+    }
+
+    /**
+     * 链式调用设置ext
+     */
+    public Result<R> ext(Object ext) {
+        this.ext = ext;
         return this;
     }
 }

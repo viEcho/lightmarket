@@ -1,6 +1,5 @@
 package com.market.business;
 
-import com.market.business.utils.ExceptionUtil;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.mybatis.spring.annotation.MapperScan;
@@ -15,7 +14,7 @@ public class MarketApplication {
         try {
             SpringApplication.run(MarketApplication.class, args);
         } catch (Exception e) {
-            ExceptionUtil.getStackMessage(e);
+            // ExceptionUtil.getStackMessage(e);
         }
     }
 }

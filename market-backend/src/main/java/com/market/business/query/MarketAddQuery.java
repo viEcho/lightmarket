@@ -27,10 +27,6 @@ public class MarketAddQuery {
     @Schema(description = "市场描述")
     private String description;
 
-    @NotNull(message = "Category is required")
-    @Schema(description = "市场分类（数字code）", example = "1")
-    private Integer category;
-
     @NotBlank(message = "Close time is required")
     @Schema(description = "市场截止时间（ISO 8601格式）", example = "2024-12-31T23:59:59")
     private String closeTime;

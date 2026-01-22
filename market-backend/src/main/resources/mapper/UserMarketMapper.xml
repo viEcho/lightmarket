@@ -12,48 +12,5 @@
   <sql id="Base_Column_List">
     id, user_id, market_id, total_pay, created_time, updated_time
   </sql>
-  <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
-    select 
-    <include refid="Base_Column_List" />
-    from user_market
-    where id = #{id,jdbcType=BIGINT}
-  </select>
-  <insert id="insert" parameterType="com.market.business.entity.UserMarket">
-    insert into user_market (id, user_id, market_id, 
-      total_pay, created_time, updated_time
-      )
-    values (#{id,jdbcType=BIGINT}, #{userId,jdbcType=BIGINT}, #{marketId,jdbcType=VARCHAR}, 
-      #{totalPay,jdbcType=DECIMAL}, #{createdTime,jdbcType=TIMESTAMP}, #{updatedTime,jdbcType=TIMESTAMP}
-      )
-  </insert>
-  <update id="updateByPrimaryKeySelective" parameterType="com.market.business.entity.UserMarket">
-    update user_market
-    <set>
-      <if test="userId != null">
-        user_id = #{userId,jdbcType=BIGINT},
-      </if>
-      <if test="marketId != null">
-        market_id = #{marketId,jdbcType=VARCHAR},
-      </if>
-      <if test="totalPay != null">
-        total_pay = #{totalPay,jdbcType=DECIMAL},
-      </if>
-      <if test="createdTime != null">
-        created_time = #{createdTime,jdbcType=TIMESTAMP},
-      </if>
-      <if test="updatedTime != null">
-        updated_time = #{updatedTime,jdbcType=TIMESTAMP},
-      </if>
-    </set>
-    where id = #{id,jdbcType=BIGINT}
-  </update>
-  <update id="updateByPrimaryKey" parameterType="com.market.business.entity.UserMarket">
-    update user_market
-    set user_id = #{userId,jdbcType=BIGINT},
-      market_id = #{marketId,jdbcType=VARCHAR},
-      total_pay = #{totalPay,jdbcType=DECIMAL},
-      created_time = #{createdTime,jdbcType=TIMESTAMP},
-      updated_time = #{updatedTime,jdbcType=TIMESTAMP}
-    where id = #{id,jdbcType=BIGINT}
-  </update>
+
 </mapper>
