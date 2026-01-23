@@ -1,9 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ethers } from 'ethers'
-import { post, postWithAuth } from '../utils/api'
+import { post, get } from '../utils/api'
 
 export const useUserStore = defineStore('user', () => {
+  // Router
+  const router = useRouter()
+
   // State
   const walletAddress = ref(null)
   const isConnected = ref(false)
@@ -144,18 +148,20 @@ export const useUserStore = defineStore('user', () => {
 
   const disconnectWallet = async () => {
     try {
-      if (walletAddress.value) {
+      if (user.value?.userId) {
         try {
-          await postWithAuth('/user/logout', {
-            walletAddress: walletAddress.value
-          })
+          // 传递 userId 参数，便于后端日志追踪和调试
+          await get('/user/logout', { userId: user.value.userId })
         } catch (err) {
           // 即使接口调用失败，也继续执行本地退出逻辑
+          console.error('[UserStore] Logout API failed:', err)
         }
       }
     } catch (err) {
       // Error handling
+      console.error('[UserStore] Disconnect error:', err)
     } finally {
+      // 清除本地状态
       walletAddress.value = null
       isConnected.value = false
       balance.value = '0'
@@ -166,6 +172,9 @@ export const useUserStore = defineStore('user', () => {
       localStorage.removeItem('walletConnected')
       localStorage.removeItem('walletAddress')
       localStorage.removeItem('userInfo')
+
+      // 跳转到首页
+      router.push('/markets')
     }
   }
 

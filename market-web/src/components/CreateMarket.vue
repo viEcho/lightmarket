@@ -343,11 +343,9 @@ export default {
           // 检查是否已存在
           if (!selectedAIList.value.includes(numCode)) {
             selectedAIList.value = [...selectedAIList.value, numCode];
-            console.log('AI added:', numCode, 'Total:', selectedAIList.value.length);
           }
         } else {
           selectedAIList.value = selectedAIList.value.filter(code => code === numCode);
-          console.log('AI removed:', numCode, 'Total:', selectedAIList.value.length);
         }
       } catch (error) {
         console.error('Error in handleAICheck:', error);
@@ -362,11 +360,9 @@ export default {
           // 检查是否已存在
           if (!selectedTagsList.value.includes(numCode)) {
             selectedTagsList.value = [...selectedTagsList.value, numCode];
-            console.log('Tag added:', numCode, 'Total:', selectedTagsList.value.length);
           }
         } else {
           selectedTagsList.value = selectedTagsList.value.filter(code => code === numCode);
-          console.log('Tag removed:', numCode, 'Total:', selectedTagsList.value.length);
         }
       } catch (error) {
         console.error('Error in handleTagCheck:', error);
@@ -557,12 +553,8 @@ export default {
           tags: selectedTagsList.value.join(',')
         };
 
-        console.log('[CreateMarket] Submitting data:', submitData);
-        console.log('[CreateMarket] User ID:', userId);
-
         // 调用后端 API
         const response = await createMarket(submitData, userId);
-        console.log('[CreateMarket] API Response:', response);
 
         if (response && response.data) {
           // 重置表单

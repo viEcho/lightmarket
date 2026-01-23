@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.market.business.mapper.UserTradesMapper">
+  <resultMap id="BaseResultMap" type="com.market.business.entity.UserTrades">
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="user_id" jdbcType="BIGINT" property="userId" />
+    <result column="trade_id" jdbcType="BIGINT" property="tradeId" />
+    <result column="order_id" jdbcType="BIGINT" property="orderId" />
+    <result column="market_id" jdbcType="VARCHAR" property="marketId" />
+    <result column="wallet_address" jdbcType="VARCHAR" property="walletAddress" />
+    <result column="token_type" jdbcType="TINYINT" property="tokenType" />
+    <result column="side" jdbcType="TINYINT" property="side" />
+    <result column="price" jdbcType="DECIMAL" property="price" />
+    <result column="amount" jdbcType="DECIMAL" property="amount" />
+    <result column="trade_amount" jdbcType="DECIMAL" property="tradeAmount" />
+    <result column="fee_amount" jdbcType="DECIMAL" property="feeAmount" />
+    <result column="tx_status" jdbcType="TINYINT" property="txStatus" />
+    <result column="tx_hash" jdbcType="VARCHAR" property="txHash" />
+    <result column="fee_currency" jdbcType="TINYINT" property="feeCurrency" />
+    <result column="created_time" jdbcType="TIMESTAMP" property="createdTime" />
+    <result column="updated_time" jdbcType="TIMESTAMP" property="updatedTime" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, user_id, trade_id, order_id, market_id, wallet_address, token_type, side, price, 
+    amount, trade_amount, fee_amount, tx_status, tx_hash, fee_currency, created_time, 
+    updated_time
+  </sql>
+
+</mapper>

@@ -99,7 +99,6 @@ const handleFilterChange = (filter) => {
   if (selectedFilter.value === filter) return
 
   selectedFilter.value = filter
-  console.log('[Markets] Filter changed to:', filter)
 
   // 重置滚动位置
   if (scrollContainer.value) {
@@ -141,11 +140,8 @@ const handleScroll = () => {
     const clientHeight = container.clientHeight
     const distanceToBottom = scrollHeight - scrollTop - clientHeight
 
-    console.log('[Markets] Scroll - distance to bottom:', distanceToBottom, 'isLoading:', isLoading.value, 'hasMore:', hasMore.value)
-
     // 距离底部 200px 时触发加载
     if (distanceToBottom < 200) {
-      console.log('[Markets] Loading next page')
       isLoadingMore = true
       loadNextPage()
 
@@ -196,15 +192,11 @@ onMounted(async () => {
   await nextTick()
   if (scrollContainer.value) {
     scrollContainer.value.addEventListener('scroll', handleScroll, { passive: true })
-    console.log('[Markets] Scroll listener attached to container')
-  } else {
-    console.error('[Markets] Failed to attach scroll listener - container not found')
   }
 })
 
 // 监听路由query参数变化
 watch(() => route.query.filter, (newFilter) => {
-  console.log('[Markets] Route query filter changed:', newFilter)
   if (newFilter === 'my') {
     const userId = userStore.user?.userId
     if (userId) {

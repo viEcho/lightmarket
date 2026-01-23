@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy:usdc": "hardhat run scripts/deploy_usdc.js",
+    "deploy:factory": "hardhat run scripts/deploy_factory.js",
+    "deploy:all": "hardhat run scripts/deploy_usdc.js && hardhat run scripts/deploy_factory.js",
+    "create:market": "hardhat run scripts/create_market.js",
+    "place:bet": "hardhat run scripts/place_bet.js"
   },
   "keywords": [],
   "author": "",

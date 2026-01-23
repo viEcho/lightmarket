@@ -2,13 +2,19 @@ package com.market.business.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.market.business.entity.Market;
+import com.market.business.entity.User;
+import com.market.business.entity.UserWallet;
 import com.market.business.global.PageVO;
 import com.market.business.mapper.MarketMapper;
+import com.market.business.mapper.UserMapper;
+import com.market.business.mapper.UserWalletMapper;
 import com.market.business.query.AdminApproveQuery;
 import com.market.business.query.MarketApproveQuery;
+import com.market.business.query.WalletQuery;
 import com.market.business.service.AdminService;
 import com.market.business.vo.AdminStatisticsVO;
 import com.market.business.vo.MarketVO;
+import com.market.business.vo.WalletVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -80,14 +86,14 @@ public class AdminServiceImpl implements AdminService {
             throw new IllegalArgumentException("市场不存在");
         }
 
-        Byte currentStatus = market.getMarketStatus();
+        Integer currentStatus = market.getMarketStatus();
         Integer targetStatus = query.getStatus();
 
         // 2. 校验状态流转规则
         validateStatusTransition(currentStatus, targetStatus);
 
         // 3. 更新状态
-        market.setMarketStatus(targetStatus.byteValue());
+        market.setMarketStatus(targetStatus);
         market.setUpdatedTime(new Date());
 
         int rows = marketMapper.updateById(market);
@@ -107,7 +113,7 @@ public class AdminServiceImpl implements AdminService {
      * - 状态不能大于3
      * - 已拒绝和已终审通过的状态不能再变更
      */
-    private void validateStatusTransition(Byte currentStatus, Integer targetStatus) {
+    private void validateStatusTransition(Integer currentStatus, Integer targetStatus) {
         // 校验目标状态范围
         if (targetStatus == null || targetStatus < 1 || targetStatus > 3) {
             throw new IllegalArgumentException("无效的目标状态，只能是1(拒绝)、2(初审通过)或3(终审通过)");
@@ -202,5 +208,43 @@ public class AdminServiceImpl implements AdminService {
         stats.setTotalLiquidity(totalLiquidity);
 
         return stats;
+    }
+
+    @Resource
+    private UserWalletMapper userWalletMapper;
+
+    @Resource
+    private UserMapper userMapper;
+
+    @Override
+    public WalletVO getWalletByAddress(WalletQuery query) {
+        log.info("[Admin] 查询钱包信息, walletAddress: {}", query.getWalletAddress());
+
+        // 1. 查询钱包信息
+        UserWallet userWallet = userWalletMapper.selectOne(
+            new QueryWrapper<UserWallet>()
+                .eq(UserWallet.WALLET_ADDRESS, query.getWalletAddress())
+        );
+
+        // 2. 如果钱包不存在，返回 null
+        if (userWallet == null) {
+            log.info("[Admin] 钱包不存在于数据库中");
+            return null;
+        }
+
+        // 3. 查询用户信息
+        User user = userMapper.selectById(userWallet.getUserId());
+
+        // 4. 构建 VO
+        return WalletVO.builder()
+            .walletAddress(userWallet.getWalletAddress())
+            .userId(userWallet.getUserId())
+            .nickname(user != null ? user.getNickname() : null)
+            .avatar(user != null ? user.getAvatar() : null)
+            .chainId(userWallet.getChainId())
+            .walletType(userWallet.getWalletType())
+            .isPrimary(userWallet.getIsPrimary())
+            .createdTime(userWallet.getCreatedTime().toString())
+            .build();
     }
 }

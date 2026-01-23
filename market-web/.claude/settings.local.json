@@ -9,7 +9,13 @@
       "Bash(curl:*)",
       "Bash(cat:*)",
       "Bash(npm uninstall:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm run deploy:usdc:*)",
+      "Bash(npm run test:*)",
+      "Bash(node:*)",
+      "Bash(npx hardhat run:*)",
+      "Bash(ls:*)",
+      "Bash(USDC_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3 npx hardhat run:*)"
     ]
   }
 }

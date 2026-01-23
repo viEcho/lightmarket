@@ -6,16 +6,16 @@ import com.market.business.enums.TagEnum;
 import com.market.business.global.PageVO;
 import com.market.business.global.Result;
 import com.market.business.query.MarketAddQuery;
+import com.market.business.query.MarketDeployingQuery;
+import com.market.business.query.MarketOpeningQuery;
 import com.market.business.query.MarketPageQuery;
 import com.market.business.service.MarketService;
 import com.market.business.vo.MarketVO;
 import com.market.business.vo.Option;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
-import jakarta.validation.Valid;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
 import javax.annotation.Resource;
 import java.util.HashMap;
 import java.util.List;
@@ -83,6 +83,26 @@ public class MarketController {
                               @RequestParam("userId") Long userId) {
         String marketId = marketService.add(query, userId);
         return Result.success(marketId);
+    }
+
+    /**
+     * 开始发布市场
+     */
+    @Operation(summary = "开始发布市场", description = "校验市场创建人和状态，将状态改为4(发布中)")
+    @GetMapping("/opening")
+    public Result<Boolean> opening(@Validated MarketOpeningQuery query) {
+        Boolean result = marketService.opening(query);
+        return Result.<Boolean>success().data(result);
+    }
+
+    /**
+     * 市场部署中
+     */
+    @Operation(summary = "市场部署中", description = "接收前端发送的交易信息，启动异步任务监听链上事件，监听到MarketCreated事件后更新数据库")
+    @PostMapping("/deploying")
+    public Result<Boolean> deploying(@Validated @RequestBody MarketDeployingQuery query) {
+        Boolean result = marketService.deploying(query);
+        return Result.<Boolean>success().data(result);
     }
 
 }

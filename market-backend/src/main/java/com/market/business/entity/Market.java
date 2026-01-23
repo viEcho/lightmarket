@@ -3,6 +3,8 @@ package com.market.business.entity;
 import java.math.BigDecimal;
 import java.util.Date;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
@@ -25,6 +27,15 @@ public class Market {
      */
     private String marketId;
 
+    /**
+     * 市场地址,右后端监听获得不得用于网络传输
+     * 避免mybatis-plus 更新插入此值 只能xml中写sql更新
+     */
+    @TableField(insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+    private String marketAddress;
+
+    @TableField(insertStrategy = FieldStrategy.NEVER, updateStrategy = FieldStrategy.NEVER)
+    private String onChainMarketId;
     /**
      * 用户ID
      */
@@ -58,7 +69,7 @@ public class Market {
     /**
      * 结算方式：0-AI裁决 1-人工
      */
-    private Byte resolutionMethod;
+    private Integer resolutionMethod;
 
     /**
      * AI裁决模型标识（逗号分隔）
@@ -71,9 +82,9 @@ public class Market {
     private String tags;
 
     /**
-     * 市场状态：0-待审核，1-已拒绝，2-初审通过，3-终审通过，4-已发布上链open，5-已关闭，6-裁决中，7-挑战中，8-已结算
+     * 市场状态：市场状态：0-待审核，1-已拒绝，2-初审通过，3-终审通过，4-deploying发布中，5-已发布上链open，6-已关闭，7-裁决中，8-挑战中，9-已终裁，10-结算中，99-已结算
      */
-    private Byte marketStatus;
+    private Integer marketStatus;
 
     /**
      * 基础流动性（默认USDC）
@@ -93,7 +104,7 @@ public class Market {
     /**
      * 最终结果：0-未结算 1-YES 2-NO 3-Invalid
      */
-    private Byte resolvedOutcome;
+    private Integer resolvedOutcome;
 
     /**
      * 累计成交量（USDC）
@@ -103,7 +114,7 @@ public class Market {
     /**
      * 风控状态：0-正常 1-冻结 2-调查中
      */
-    private Byte riskStatus;
+    private Integer riskStatus;
 
     /**
      * 运营排序权重

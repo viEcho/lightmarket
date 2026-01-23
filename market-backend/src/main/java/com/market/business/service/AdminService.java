@@ -3,8 +3,10 @@ package com.market.business.service;
 import com.market.business.global.PageVO;
 import com.market.business.query.AdminApproveQuery;
 import com.market.business.query.MarketApproveQuery;
+import com.market.business.query.WalletQuery;
 import com.market.business.vo.AdminStatisticsVO;
 import com.market.business.vo.MarketVO;
+import com.market.business.vo.WalletVO;
 
 /**
  * Admin Service 接口
@@ -36,4 +38,12 @@ public interface AdminService {
      * @return 统计信息
      */
     AdminStatisticsVO getStatistics();
+
+    /**
+     * 根据钱包地址查询用户信息
+     *
+     * @param query 钱包查询参数
+     * @return 钱包信息
+     */
+    WalletVO getWalletByAddress(WalletQuery query);
 }

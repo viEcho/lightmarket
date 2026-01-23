@@ -1,6 +1,7 @@
 package com.market.business.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.market.business.query.AddWalletQuery;
 import com.market.business.query.UserRegisterQuery;
 import com.market.business.entity.User;
 import com.market.business.entity.UserNonce;
@@ -9,9 +10,12 @@ import com.market.business.mapper.UserNonceMapper;
 import com.market.business.mapper.UserWalletMapper;
 import com.market.business.service.AuthService;
 import com.market.business.service.UserService;
+import com.market.business.util.JwtUtil;
 import com.market.business.vo.LoginVO;
 import com.market.business.vo.NonceVO;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RBucket;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.web3j.crypto.Keys;
@@ -19,6 +23,7 @@ import org.web3j.crypto.Sign;
 import org.web3j.utils.Numeric;
 
 import java.math.BigInteger;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -41,10 +46,26 @@ public class AuthServiceImpl implements AuthService {
     @Resource
     private UserService userService;
 
+    @Resource
+    private JwtUtil jwtUtil;
+
+    @Resource
+    private RedissonClient redissonClient;
+
     /**
      * 默认nonce过期时间为15分钟
      */
     private static final long NONCE_EXPIRATION_MINUTES = 15;
+
+    /**
+     * Token过期时间：7天
+     */
+    private static final Duration TOKEN_EXPIRATION = Duration.ofDays(7);
+
+    /**
+     * Redis中token的key前缀
+     */
+    private static final String TOKEN_KEY_PREFIX = "auth:token:";
 
     /**
      * 日期时间格式化器 - 使用固定格式避免纳秒不一致问题
@@ -141,8 +162,15 @@ public class AuthServiceImpl implements AuthService {
         // Find or create user
         User user = findOrCreateUser(walletAddress, chainId, request.getWalletType());
 
-        // Generate JWT token (simplified - you should use a proper JWT library)
-        String token = generateToken(user);
+        // Generate JWT token
+        String token = jwtUtil.generateToken(user.getId());
+
+        // Store token in Redis with 7 days expiration
+        String redisKey = TOKEN_KEY_PREFIX + user.getId();
+        RBucket<String> bucket = redissonClient.getBucket(redisKey);
+        bucket.set(token, TOKEN_EXPIRATION);
+
+        log.info("User logged in successfully, userId: {}, token stored in Redis with key: {}", user.getId(), redisKey);
 
         return new LoginVO(
                 user.getId(),
@@ -280,50 +308,180 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * Find existing user or create new one
+     *
+     * 业务逻辑：
+     * 1. 一个钱包地址 = 一个用户（跨链共享）
+     * 2. 同一个钱包地址在不同链上登录，返回同一个用户
+     * 3. 一个用户可以有多个不同的钱包地址（通过"添加钱包"功能）
      */
     private User findOrCreateUser(String walletAddress, Integer chainId, String walletType) {
-        // Check if wallet exists
+        // 只用钱包地址查询用户（不查 chainId）
+        // 这样同一个钱包地址在不同链上登录，都会返回同一个用户
         QueryWrapper<UserWallet> walletWrapper = new QueryWrapper<>();
-        walletWrapper.eq(UserWallet.WALLET_ADDRESS, walletAddress)
-                .eq(UserWallet.CHAIN_ID, chainId);
+        walletWrapper.eq(UserWallet.WALLET_ADDRESS, walletAddress);
 
         UserWallet userWallet = userWalletMapper.selectOne(walletWrapper);
 
         User user;
         if (userWallet != null) {
+            // 找到了钱包记录，返回关联的用户
             user = userService.getById(userWallet.getUserId());
+
+            // 检查是否需要添加新的链记录
+            // 查询该钱包是否已经在该链上有记录
+            QueryWrapper<UserWallet> chainWalletWrapper = new QueryWrapper<>();
+            chainWalletWrapper.eq(UserWallet.WALLET_ADDRESS, walletAddress)
+                    .eq(UserWallet.CHAIN_ID, chainId);
+            UserWallet chainWallet = userWalletMapper.selectOne(chainWalletWrapper);
+
+            if (chainWallet == null) {
+                // 该钱包在这个链上还没有记录，创建一条新记录
+                UserWallet newChainWallet = new UserWallet();
+                newChainWallet.setUserId(user.getId());
+                newChainWallet.setWalletAddress(walletAddress);
+                newChainWallet.setChainId(chainId);
+                newChainWallet.setWalletType(walletType != null ? walletType : "metamask");
+                newChainWallet.setIsPrimary((byte) 0); // 非主钱包
+                newChainWallet.setCreatedTime(new Date());
+                newChainWallet.setUpdatedTime(new Date());
+                userWalletMapper.insert(newChainWallet);
+                log.info("Added new chain record for existing wallet: address={}, chainId={}, userId={}",
+                        walletAddress, chainId, user.getId());
+            }
         } else {
+            // 没找到钱包记录，创建新用户
             user = new User();
             user.setUid(UUID.randomUUID().toString().replace("-", ""));
             user.setNickname(walletAddress.substring(0, 6) + "..." + walletAddress.substring(38));
             user.setDeleteFlag((byte) 0);
             user.setCreatedTime(new Date());
             user.setUpdatedTime(new Date());
-
             userService.save(user);
 
-            // Create wallet record
+            // 创建钱包记录
             userWallet = new UserWallet();
             userWallet.setUserId(user.getId());
             userWallet.setWalletAddress(walletAddress);
             userWallet.setChainId(chainId);
             userWallet.setWalletType(walletType != null ? walletType : "metamask");
-            userWallet.setIsPrimary((byte) 1);
+            userWallet.setIsPrimary((byte) 1); // 第一个钱包默认为主钱包
             userWallet.setCreatedTime(new Date());
             userWallet.setUpdatedTime(new Date());
 
             userWalletMapper.insert(userWallet);
+            log.info("Created new user and wallet: address={}, chainId={}, userId={}",
+                    walletAddress, chainId, user.getId());
         }
         return user;
     }
 
-    /**
-     * Generate JWT token for user
-     * TODO: Implement proper JWT token generation with JWT library
-     */
-    private String generateToken(User user) {
-        // This is a simplified token generation
-        // In production, use a proper JWT library like io.jsonwebtoken:jjwt
-        return "jwt_" + user.getUid() + "_" + System.currentTimeMillis();
+    @Override
+    @Transactional
+    public void addWallet(AddWalletQuery request) {
+        Long userId = request.getUserId();
+        String walletAddress = request.getWalletAddress();
+        Integer chainId = request.getChainId();
+        String signature = request.getSignature();
+
+        if (validAddress(walletAddress)) {
+            throw new IllegalArgumentException("Invalid wallet address format");
+        }
+
+        // 1. 验证用户是否存在
+        User user = userService.getById(userId);
+        if (user == null) {
+            throw new IllegalArgumentException("User not found with id: " + userId);
+        }
+
+        // 2. 查找未使用的 nonce
+        QueryWrapper<UserNonce> nonceWrapper = new QueryWrapper<>();
+        nonceWrapper.eq(UserNonce.WALLET_ADDRESS, walletAddress)
+                .eq(UserNonce.CHAIN_ID, chainId)
+                .eq(UserNonce.USED, 0)
+                .orderByDesc(UserNonce.CREATED_TIME)
+                .last("LIMIT 1");
+
+        UserNonce userNonce = userNonceMapper.selectOne(nonceWrapper);
+        if (userNonce == null) {
+            throw new IllegalArgumentException("No valid nonce found for this wallet. Please request a nonce first.");
+        }
+
+        // 3. 检查 nonce 是否过期
+        if (userNonce.getExpiredAt().before(new Date())) {
+            throw new IllegalArgumentException("Nonce has expired. Please request a new nonce.");
+        }
+
+        // 4. 验证签名
+        boolean isValid = verifySignature(walletAddress, userNonce.getNonce(), signature, userNonce.getFormattedExpiredAt());
+        if (!isValid) {
+            throw new IllegalArgumentException("Invalid signature");
+        }
+
+        // 5. 标记 nonce 为已使用
+        userNonce.setUsed((byte) 1);
+        userNonceMapper.updateById(userNonce);
+
+        // 6. 检查该钱包是否已经被其他用户绑定
+        QueryWrapper<UserWallet> existingWalletWrapper = new QueryWrapper<>();
+        existingWalletWrapper.eq(UserWallet.WALLET_ADDRESS, walletAddress);
+        UserWallet existingWallet = userWalletMapper.selectOne(existingWalletWrapper);
+
+        if (existingWallet != null) {
+            bindToUser(request, existingWallet, userId, walletAddress, chainId);
+        } else {
+            // 该钱包还没有被绑定过，新绑定钱包
+            UserWallet newWallet = new UserWallet();
+            newWallet.setUserId(userId);
+            newWallet.setWalletAddress(walletAddress);
+            newWallet.setChainId(chainId);
+            newWallet.setWalletType(request.getWalletType() != null ? request.getWalletType() : "metamask");
+            newWallet.setIsPrimary((byte) 0); // 非主钱包
+            newWallet.setCreatedTime(new Date());
+            newWallet.setUpdatedTime(new Date());
+            userWalletMapper.insert(newWallet);
+
+            log.info("Added new wallet to user: userId={}, address={}, chainId={}", userId, walletAddress, chainId);
+        }
+    }
+
+    private void bindToUser(AddWalletQuery request, UserWallet existingWallet, Long userId, String walletAddress, Integer chainId) {
+        if (existingWallet.getUserId().equals(userId)) {
+            // 该钱包已经绑定到当前用户
+            // 检查是否需要添加新的链记录
+            QueryWrapper<UserWallet> chainWalletWrapper = new QueryWrapper<>();
+            chainWalletWrapper.eq(UserWallet.WALLET_ADDRESS, walletAddress)
+                    .eq(UserWallet.CHAIN_ID, chainId);
+            UserWallet chainWallet = userWalletMapper.selectOne(chainWalletWrapper);
+
+            if (chainWallet != null) {
+                throw new IllegalArgumentException("This wallet on this chain is already linked to your account");
+            }
+
+            // 添加新的链记录
+            UserWallet newChainWallet = new UserWallet();
+            newChainWallet.setUserId(userId);
+            newChainWallet.setWalletAddress(walletAddress);
+            newChainWallet.setChainId(chainId);
+            newChainWallet.setWalletType(request.getWalletType() != null ? request.getWalletType() : "metamask");
+            newChainWallet.setIsPrimary((byte) 0);
+            newChainWallet.setCreatedTime(new Date());
+            newChainWallet.setUpdatedTime(new Date());
+            userWalletMapper.insert(newChainWallet);
+
+            log.info("Added new chain for existing wallet: userId={}, address={}, chainId={}", userId, walletAddress, chainId);
+        } else {
+            // 该钱包已经绑定到其他用户
+            throw new IllegalArgumentException("This wallet is already linked to another user");
+        }
+    }
+
+    @Override
+    public void logout(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID cannot be null");
+        }
+        String redisKey = TOKEN_KEY_PREFIX + userId;
+        RBucket<String> bucket = redissonClient.getBucket(redisKey);
+        bucket.delete();
     }
 }

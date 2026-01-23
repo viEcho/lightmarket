@@ -125,6 +125,8 @@ public class Result<R> implements Serializable {
         return new Result<>(responseCodeEnum, data);
     }
 
+
+
     /**
      * 链式调用设置success
      */

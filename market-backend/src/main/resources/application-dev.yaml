@@ -44,3 +44,14 @@ spring:
     clean-disabled: false
     # 配置数据库信息表的名称，默认是flyway_schema_history
     table: flyway_schema_history
+
+# Web3j 区块链配置
+web3j:
+  # RPC节点地址 (开发环境使用本地节点)
+  rpc-url: http://127.0.0.1:8545
+  # 网络ID (1=以太坊主网, 5=Goerli测试网, 1337=本地开发网络)
+  network-id: 1337
+  # 市场工厂合约地址
+  market-factory-address: "0x0000000000000000000000000000000000000000"
+  # 私钥 (仅用于开发环境，生产环境应使用密钥管理服务)
+  private-key: ""

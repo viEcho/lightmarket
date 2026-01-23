@@ -1,5 +1,6 @@
 package com.market.business.controller;
 
+import com.market.business.query.AddWalletQuery;
 import com.market.business.query.UserCheckQuery;
 import com.market.business.query.UserRegisterQuery;
 import com.market.business.global.Result;
@@ -9,6 +10,7 @@ import com.market.business.vo.LoginVO;
 import com.market.business.vo.NonceVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -49,6 +51,26 @@ public class UserController {
     public Result<LoginVO> login(@Validated @RequestBody UserRegisterQuery request) {
         LoginVO response = authService.verifyAndLogin(request);
         return Result.success(response);
+    }
+
+    /**
+     * Add new wallet to existing user
+     */
+    @Operation(summary = "添加钱包", description = "将新钱包地址绑定到当前用户账号")
+    @PostMapping("/wallet/add")
+    public Result<Void> addWallet(@Validated @RequestBody AddWalletQuery request) {
+        authService.addWallet(request);
+        return Result.success();
+    }
+
+    /**
+     * User logout
+     */
+    @Operation(summary = "退出登录", description = "清除用户token，退出登录")
+    @GetMapping("/logout")
+    public Result<Void> logout(Long userId) {
+        authService.logout(userId);
+        return Result.success();
     }
 }
 

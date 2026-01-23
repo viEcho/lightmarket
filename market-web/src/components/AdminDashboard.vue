@@ -69,6 +69,12 @@
       >
         Settled Markets
       </button>
+      <button
+        :class="['tab-button', { active: activeTab === 'users' }]"
+        @click="activeTab = 'users'"
+      >
+        👥 User Management
+      </button>
     </div>
 
     <!-- 市场详情弹窗 -->
@@ -90,8 +96,8 @@
           <div class="detail-grid">
             <div class="detail-item">
               <span class="detail-label">Status</span>
-              <span :class="['detail-value', 'status-badge', getStatusClass(selectedMarket.marketStatus)]">
-                {{ getStatusText(selectedMarket.marketStatus) }}
+              <span :class="['detail-value', 'status-badge', getMarketStatusClass(selectedMarket.marketStatus)]">
+                {{ getMarketStatusText(selectedMarket.marketStatus) }}
               </span>
             </div>
             <div class="detail-item">
@@ -154,8 +160,8 @@
         >
           <div class="market-header">
             <span class="market-category">{{ formatTags(market.tags) || '其他' }}</span>
-            <span :class="['market-status', getStatusClass(market.marketStatus)]">
-              {{ getStatusText(market.marketStatus) }}
+            <span :class="['market-status', getMarketStatusClass(market.marketStatus, true)]">
+              {{ getMarketStatusText(market.marketStatus) }}
             </span>
           </div>
           <h3 class="market-title">{{ market.title }}</h3>
@@ -244,6 +250,11 @@
         <div class="empty-desc">Settle markets promptly after they end to receive rewards</div>
       </div>
     </div>
+
+    <!-- User Management -->
+    <div v-if="activeTab === 'users'" class="users-section">
+      <UserManagement />
+    </div>
   </div>
 </template>
 
@@ -251,6 +262,8 @@
 import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { getAdminStatistics, getAdminApproveList } from '../utils/api';
+import { getMarketStatusText, getMarketStatusClass } from '../constants/marketStatus';
+import UserManagement from './UserManagement.vue';
 
 export default {
   name: 'AdminDashboard',
@@ -351,21 +364,6 @@ export default {
       return categories[category] || category;
     };
 
-    const getStatusText = (status) => {
-      const statusMap = {
-        0: '待审核',
-        1: '已拒绝',
-        2: '初审通过',
-        3: '终审通过',
-        4: '已发布',
-        5: '已关闭',
-        6: '裁决中',
-        7: '挑战中',
-        8: '已结算'
-      };
-      return statusMap[status] || status;
-    };
-
     const formatDate = (timestamp) => {
       if (!timestamp) return '';
       const date = new Date(timestamp);
@@ -416,21 +414,6 @@ export default {
       }
     };
 
-    const getStatusClass = (status) => {
-      const classMap = {
-        0: 'pending',
-        1: 'rejected',
-        2: 'review',
-        3: 'approved',
-        4: 'active',
-        5: 'closed',
-        6: 'resolving',
-        7: 'challenging',
-        8: 'settled'
-      };
-      return classMap[status] || 'pending';
-    };
-
     const getOutcomeClass = (outcome) => {
       if (outcome === 1) return 'yes';
       if (outcome === 2) return 'no';
@@ -456,8 +439,8 @@ export default {
       formatNumber,
       formatTags,
       getCategoryName,
-      getStatusText,
-      getStatusClass,
+      getMarketStatusText,
+      getMarketStatusClass,
       getOutcomeClass,
       getOutcomeText,
       formatDate,
@@ -468,6 +451,9 @@ export default {
       createMarket,
       settleMarket
     };
+  },
+  components: {
+    UserManagement
   }
 };
 </script>
@@ -658,6 +644,36 @@ export default {
 .market-status.settled {
   background: rgba(59, 130, 246, 0.1);
   color: #3B82F6;
+}
+
+.market-status.preliminary {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3B82F6;
+}
+
+.market-status.final {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22C55E;
+}
+
+.market-status.deploying {
+  background: rgba(168, 85, 247, 0.1);
+  color: #A855F7;
+}
+
+.market-status.arbitrating {
+  background: rgba(168, 85, 247, 0.1);
+  color: #A855F7;
+}
+
+.market-status.final-arbitrated {
+  background: rgba(236, 72, 153, 0.1);
+  color: #EC4899;
+}
+
+.market-status.settling {
+  background: rgba(245, 158, 11, 0.1);
+  color: #F59E0B;
 }
 
 .market-title {
@@ -1007,5 +1023,10 @@ export default {
   .modal-content {
     max-height: 90vh;
   }
+}
+
+/* User Management Section */
+.users-section {
+  padding: 20px;
 }
 </style>

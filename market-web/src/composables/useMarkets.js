@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { getMarketList, getMyMarkets } from '../utils/api'
+import { getMarketStatusLogical } from '../constants/marketStatus'
 
 const markets = ref([])
 const currentPage = ref(1)
@@ -92,7 +93,7 @@ export function useMarkets() {
           volume: market.totalVolume ? parseFloat(market.totalVolume) : 0,
           liquidity: market.baseLiquidity ? parseFloat(market.baseLiquidity) : 0,
           liquidityProviders: 0,
-          status: getMarketStatus(market.marketStatus),
+          status: getMarketStatusLogical(market.marketStatus),
           marketStatus: market.marketStatus,
           creator: market.creator || 'Unknown',
           createTime: market.createdTime ? new Date(market.createdTime).getTime() : Date.now(),
@@ -100,7 +101,8 @@ export function useMarkets() {
           tags: market.tags || [],
           aiModels: market.aiModels || [],
           oracleSource: market.oracleSource,
-          baseLiquidity: market.baseLiquidity
+          baseLiquidity: market.baseLiquidity,
+          marketAddress: market.marketAddress
         }))
 
         // 如果是刷新，直接替换；否则追加
@@ -113,8 +115,6 @@ export function useMarkets() {
         // 更新总数和是否还有更多数据
         total.value = totalCount
         hasMore.value = nextPage
-
-        console.log('[useMarkets] Markets loaded, count:', formattedMarkets.length, 'hasMore:', hasMore.value)
       }
     } catch (err) {
       // 降级：加载本地 mock 数据
@@ -147,50 +147,21 @@ export function useMarkets() {
   }
 
   /**
-   * 转换市场状态
-   */
-  const getMarketStatus = (marketStatus) => {
-    const statusMap = {
-      0: 'pending',
-      1: 'rejected',
-      2: 'preliminary',
-      3: 'final',
-      4: 'active',
-      5: 'closed',
-      6: 'arbitrating',
-      7: 'challenging',
-      8: 'settled'
-    }
-    return statusMap[marketStatus] || 'pending'
-  }
-
-  /**
    * 加载下一页
    */
   const loadNextPage = () => {
-    console.log('[useMarkets] loadNextPage called')
-    console.log('[useMarkets] isLoading:', isLoading.value)
-    console.log('[useMarkets] hasMore:', hasMore.value)
-    console.log('[useMarkets] currentUserId:', currentUserId.value)
-    console.log('[useMarkets] isViewingMyMarkets:', isViewingMyMarkets.value)
-
     if (!isLoading.value && hasMore.value) {
       currentPage.value++
-      console.log('[useMarkets] Incrementing currentPage to:', currentPage.value)
 
       // 如果当前正在加载用户市场，继续加载用户市场的下一页
       if (currentUserId.value) {
-        console.log('[useMarkets] Loading next page of my markets, userId:', currentUserId.value, 'page:', currentPage.value)
         loadMyMarkets({
           userId: currentUserId.value,
           page: currentPage.value
         })
       } else {
-        console.log('[useMarkets] Loading next page of all markets, page:', currentPage.value)
         loadMarkets({ page: currentPage.value })
       }
-    } else {
-      console.log('[useMarkets] Cannot load - isLoading:', isLoading.value, 'hasMore:', hasMore.value)
     }
   }
 
@@ -208,7 +179,6 @@ export function useMarkets() {
    * 返回所有市场视图
    */
   const backToAllMarkets = () => {
-    console.log('[useMarkets] backToAllMarkets called')
     currentUserId.value = null
     isViewingMyMarkets.value = false
     currentTag.value = null
@@ -223,12 +193,7 @@ export function useMarkets() {
    * @param {boolean} params.refresh - 是否刷新（重新加载第一页）
    */
   const loadMyMarkets = async (params = {}) => {
-    console.log('[useMarkets] loadMyMarkets called with params:', params)
-    console.log('[useMarkets] isLoading:', isLoading.value)
-    console.log('[useMarkets] hasMore:', hasMore.value)
-
     if (isLoading.value) {
-      console.log('[useMarkets] Already loading, returning')
       return
     }
     if (!params.userId) {
@@ -236,13 +201,11 @@ export function useMarkets() {
       return
     }
     if (!params.refresh && !hasMore.value) {
-      console.log('[useMarkets] No more data to load')
       return
     }
 
     try {
       isLoading.value = true
-      console.log('[useMarkets] Starting to load my markets...')
 
       // 记录当前加载的用户ID
       currentUserId.value = params.userId
@@ -253,7 +216,6 @@ export function useMarkets() {
         currentPage.value = 1
         markets.value = []
         hasMore.value = true
-        console.log('[useMarkets] Refreshed, reset to page 1')
       }
 
       // 如果指定了页码，使用指定页码
@@ -267,14 +229,10 @@ export function useMarkets() {
         size: pageSize.value
       }
 
-      console.log('[useMarkets] Calling getMyMarkets with params:', requestParams)
       const response = await getMyMarkets(requestParams)
-      console.log('[useMarkets] Response received:', response)
 
       if (response && response.data) {
         const { list, total: totalCount, nextPage } = response.data
-
-        console.log('[useMarkets] Markets count:', list?.length)
 
         // 转换后端字段为前端格式
         const formattedMarkets = list.map(market => ({
@@ -293,7 +251,7 @@ export function useMarkets() {
           volume: market.totalVolume ? parseFloat(market.totalVolume) : 0,
           liquidity: market.baseLiquidity ? parseFloat(market.baseLiquidity) : 0,
           liquidityProviders: 0,
-          status: getMarketStatus(market.marketStatus),
+          status: getMarketStatusLogical(market.marketStatus),
           marketStatus: market.marketStatus,
           creator: market.creator || 'Unknown',
           createTime: market.createdTime ? new Date(market.createdTime).getTime() : Date.now(),
@@ -301,7 +259,8 @@ export function useMarkets() {
           tags: market.tags || [],
           aiModels: market.aiModels || [],
           oracleSource: market.oracleSource,
-          baseLiquidity: market.baseLiquidity
+          baseLiquidity: market.baseLiquidity,
+          marketAddress: market.marketAddress
         }))
 
         // 如果是刷新，直接替换；否则追加
@@ -314,13 +273,6 @@ export function useMarkets() {
         // 更新总数和是否还有更多数据
         total.value = totalCount
         hasMore.value = nextPage
-
-        console.log('[useMarkets] My markets loaded successfully, count:', formattedMarkets.length)
-        console.log('[useMarkets] total:', totalCount)
-        console.log('[useMarkets] hasMore:', hasMore.value)
-        console.log('[useMarkets] nextPage:', nextPage)
-        console.log('[useMarkets] currentUserId:', currentUserId.value)
-        console.log('[useMarkets] isViewingMyMarkets:', isViewingMyMarkets.value)
       }
     } catch (err) {
       console.error('[useMarkets] Failed to load my markets:', err)

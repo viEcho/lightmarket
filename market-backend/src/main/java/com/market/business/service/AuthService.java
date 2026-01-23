@@ -1,5 +1,6 @@
 package com.market.business.service;
 
+import com.market.business.query.AddWalletQuery;
 import com.market.business.query.UserRegisterQuery;
 import com.market.business.vo.LoginVO;
 import com.market.business.vo.NonceVO;
@@ -25,4 +26,18 @@ public interface AuthService {
      * @return 登录响应
      */
     LoginVO verifyAndLogin(UserRegisterQuery request);
+
+    /**
+     * Add new wallet to existing user
+     *
+     * @param request 添加钱包请求
+     */
+    void addWallet(AddWalletQuery request);
+
+    /**
+     * User logout - clear token from Redis
+     *
+     * @param userId 用户ID
+     */
+    void logout(Long userId);
 }

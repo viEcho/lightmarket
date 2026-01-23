@@ -23,33 +23,24 @@ const getToken = () => {
  * 通用请求处理函数
  * @param {string} endpoint - API 端点
  * @param {Object} options - 请求配置
- * @param {boolean} withToken - 是否需要携带 token
  * @returns {Promise<Object>} 响应数据
  */
-const request = async (endpoint, options = {}, withToken = false) => {
+const request = async (endpoint, options = {}) => {
   const url = `${API_BASE_URL}${endpoint}`
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers
   }
 
-  // 如果需要 token，添加到请求头
-  if (withToken) {
-    const token = getToken()
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
+  // 自动添加 token 到所有请求
+  const token = getToken()
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
   }
 
   const config = {
     ...options,
     headers
-  }
-
-  // 调试：打印 findList 接口的实际传参
-  if (endpoint.includes('findList') && config.body) {
-    console.log('[API Debug] findList 请求参数:', config.body)
-    console.log('[API Debug] Content-Type:', headers['Content-Type'])
   }
 
   try {
@@ -73,7 +64,7 @@ const request = async (endpoint, options = {}, withToken = false) => {
 }
 
 /**
- * GET 请求（不需要 token）
+ * GET 请求
  * @param {string} endpoint - API 端点
  * @param {Object} params - 查询参数
  * @returns {Promise<Object>} 响应数据
@@ -81,23 +72,11 @@ const request = async (endpoint, options = {}, withToken = false) => {
 export const get = (endpoint, params = {}) => {
   const queryString = new URLSearchParams(params).toString()
   const url = queryString ? `${endpoint}?${queryString}` : endpoint
-  return request(url, { method: 'GET' }, false)
+  return request(url, { method: 'GET' })
 }
 
 /**
- * GET 请求（需要 token）
- * @param {string} endpoint - API 端点
- * @param {Object} params - 查询参数
- * @returns {Promise<Object>} 响应数据
- */
-export const getWithAuth = (endpoint, params = {}) => {
-  const queryString = new URLSearchParams(params).toString()
-  const url = queryString ? `${endpoint}?${queryString}` : endpoint
-  return request(url, { method: 'GET' }, true)
-}
-
-/**
- * POST 请求（不需要 token）
+ * POST 请求
  * @param {string} endpoint - API 端点
  * @param {Object} data - 请求体数据
  * @returns {Promise<Object>} 响应数据
@@ -106,43 +85,52 @@ export const post = (endpoint, data = {}) => {
   return request(endpoint, {
     method: 'POST',
     body: JSON.stringify(data)
-  }, false)
+  })
 }
 
 /**
- * POST 请求（需要 token）
+ * PUT 请求
  * @param {string} endpoint - API 端点
  * @param {Object} data - 请求体数据
  * @returns {Promise<Object>} 响应数据
  */
-export const postWithAuth = (endpoint, data = {}) => {
-  return request(endpoint, {
-    method: 'POST',
-    body: JSON.stringify(data)
-  }, true)
-}
-
-/**
- * PUT 请求（需要 token）
- * @param {string} endpoint - API 端点
- * @param {Object} data - 请求体数据
- * @returns {Promise<Object>} 响应数据
- */
-export const putWithAuth = (endpoint, data = {}) => {
+export const put = (endpoint, data = {}) => {
   return request(endpoint, {
     method: 'PUT',
     body: JSON.stringify(data)
-  }, true)
+  })
 }
 
 /**
- * DELETE 请求（需要 token）
+ * DELETE 请求
  * @param {string} endpoint - API 端点
  * @returns {Promise<Object>} 响应数据
  */
-export const deleteWithAuth = (endpoint) => {
-  return request(endpoint, { method: 'DELETE' }, true)
+export const del = (endpoint) => {
+  return request(endpoint, { method: 'DELETE' })
 }
+
+// ============ 兼容旧代码的别名 ============
+
+/**
+ * @deprecated 使用 get 代替
+ */
+export const getWithAuth = get
+
+/**
+ * @deprecated 使用 post 代替
+ */
+export const postWithAuth = post
+
+/**
+ * @deprecated 使用 put 代替
+ */
+export const putWithAuth = put
+
+/**
+ * @deprecated 使用 del 代替
+ */
+export const deleteWithAuth = del
 
 /**
  * GET 请求获取配置选项（tag, ai 等）
@@ -184,7 +172,7 @@ export const getMarketList = (params = {}) => {
       'Content-Type': 'application/x-www-form-urlencoded'
     },
     body: formData.toString()
-  }, false)
+  })
 }
 
 /**
@@ -216,11 +204,11 @@ export const getMyMarkets = (params = {}) => {
       'Content-Type': 'application/x-www-form-urlencoded'
     },
     body: formData.toString()
-  }, false)
+  })
 }
 
 /**
- * POST 请求创建市场（需要 token，使用 form 表单）
+ * POST 请求创建市场（使用 form 表单）
  * @param {Object} data - 市场数据
  * @param {string} data.title - 市场标题
  * @param {string} data.description - 市场描述
@@ -248,7 +236,7 @@ export const createMarket = (data, userId) => {
       'Content-Type': 'application/x-www-form-urlencoded'
     },
     body: formData.toString()
-  }, true)
+  })
 }
 
 /**
@@ -280,7 +268,7 @@ export const getAdminApproveList = (params = {}) => {
       'Content-Type': 'application/x-www-form-urlencoded'
     },
     body: formData.toString()
-  }, false)
+  })
 }
 
 /**
@@ -292,7 +280,64 @@ export const getAdminApproveList = (params = {}) => {
 export const approveMarket = (marketId, status) => {
   return request(`/admin/approve?marketId=${encodeURIComponent(marketId)}&status=${status}`, {
     method: 'GET'
-  }, false)
+  })
+}
+
+/**
+ * GET 请求开始发布市场
+ *
+ * 调用此接口前,前端应该:
+ * 1. 检查用户钱包是否连接
+ * 2. 检查USDC余额是否充足
+ *
+ * 后端会校验:
+ * 1. 市场创建人是该用户
+ * 2. 市场状态是终审通过(status=3)
+ * 3. 如果校验通过,将状态改为"发布中"(status=4)
+ * 4. 后端开始监听工厂合约的 MarketCreated 事件
+ *
+ * @param {string} userId - 用户ID
+ * @param {string} marketId - 市场ID
+ * @returns {Promise<Object>} 响应数据
+ */
+export const openMarket = (userId, marketId) => {
+  return request(`/market/opening?userId=${encodeURIComponent(userId)}&marketId=${encodeURIComponent(marketId)}`, {
+    method: 'GET'
+  })
+}
+
+/**
+ * POST 请求通知后端：开始创建市场合约（开放市场后调用）
+ *
+ * 🔒 安全方案：
+ * - 前端调用合约创建市场
+ * - 立即通知后端（只发送 txHash）
+ * - 后端将状态改为"开放中"（status = 6，deploying）
+ * - 后端定时任务每30秒查询链上事件
+ * - 找到 MarketCreated 事件后，更新为"已发布"（status = 4）
+ *
+ * @param {string} marketId - 市场ID
+ * @param {Object} data - 交易数据
+ * @param {string} data.txHash - 交易哈希
+ * @param {string} data.onChainMarketId - 链上市场ID（供后端参考）
+ * @returns {Promise<Object>} 响应数据
+ */
+export const notifyMarketDeploying = (marketId, data) => {
+  // 将对象转为表单格式
+  const formData = new URLSearchParams()
+  Object.keys(data).forEach(key => {
+    if (data[key] !== undefined && data[key] !== null) {
+      formData.append(key, data[key])
+    }
+  })
+
+  return request(`/market/deploying?marketId=${encodeURIComponent(marketId)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: formData.toString()
+  })
 }
 
 /**
@@ -302,5 +347,43 @@ export const approveMarket = (marketId, status) => {
 export const getAdminStatistics = () => {
   return request('/admin/sum', {
     method: 'GET'
-  }, false)
+  })
+}
+
+/**
+ * POST 请求添加钱包到用户账号
+ * @param {Object} data - 添加钱包数据
+ * @param {number} data.userId - 用户ID
+ * @param {string} data.walletAddress - 钱包地址
+ * @param {number} data.chainId - 链ID
+ * @param {string} data.walletType - 钱包类型（可选）
+ * @param {string} data.signature - 签名
+ * @returns {Promise<Object>} 响应数据
+ */
+export const addWallet = (data) => {
+  return post('/user/wallet/add', data)
+}
+
+/**
+ * POST 请求获取 Nonce
+ * @param {Object} data - 请求数据
+ * @param {string} data.walletAddress - 钱包地址
+ * @param {number} data.chainId - 链ID
+ * @returns {Promise<Object>} 响应数据，包含 nonce, expiredAt, message
+ */
+export const getNonce = (data) => {
+  return post('/user/nonce', data)
+}
+
+/**
+ * POST 请求钱包登录
+ * @param {Object} data - 登录数据
+ * @param {string} data.walletAddress - 钱包地址
+ * @param {number} data.chainId - 链ID
+ * @param {string} data.signature - 签名
+ * @param {string} data.walletType - 钱包类型（可选）
+ * @returns {Promise<Object>} 响应数据，包含 userId, token, uid, nickname, avatar, walletAddress
+ */
+export const walletLogin = (data) => {
+  return post('/user/login', data)
 }

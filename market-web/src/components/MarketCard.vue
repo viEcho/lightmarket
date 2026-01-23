@@ -10,8 +10,8 @@
           >
             {{ tag.desc }}
           </span>
-          <span v-if="market.marketStatus !== undefined" class="status-badge" :class="getStatusClass(market.marketStatus)">
-            {{ getStatusText(market.marketStatus) }}
+          <span v-if="market.marketStatus !== undefined" class="status-badge" :class="getMarketStatusClass(market.marketStatus)">
+            {{ getMarketStatusText(market.marketStatus) }}
           </span>
         </div>
         <span class="end-date">{{ formatDate(market.endTime) }}</span>
@@ -20,7 +20,15 @@
       <h3 class="question">{{ market.question }}</h3>
       <p class="description">{{ market.description }}</p>
 
-      <div class="card-stats">
+      <!-- 发布市场按钮 (仅当终审通过时显示) -->
+      <OpenMarketButton
+        v-if="market.marketStatus === 3"
+        :market="market"
+        @deployed="handleDeployed"
+        @click.stop
+      />
+
+      <div class="card-stats" v-show="market.marketStatus !== 3">
         <div class="stat-item" v-if="market.creator">
           <span class="stat-label">Creator</span>
           <span class="stat-value creator-address">{{ formatAddress(market.creator) }}</span>
@@ -31,7 +39,7 @@
         </div>
       </div>
 
-      <div class="probability-section">
+      <div class="probability-section" v-show="market.marketStatus !== 3">
         <div class="probability-header">
           <span class="probability-label">Current Probability</span>
           <span class="probability-value">{{ Math.round(yesProbability * 100) }}%</span>
@@ -42,7 +50,7 @@
       </div>
     </div>
 
-    <div class="card-actions">
+    <div class="card-actions" v-show="market.marketStatus !== 3 && market.marketStatus >= 5">
       <button class="btn-yes" @click.stop="handleBet('yes')">
         <span class="btn-label">Yes</span>
         <span class="btn-price">{{ Math.round(market.yesPrice * 100) }}¢</span>
@@ -52,11 +60,23 @@
         <span class="btn-price">{{ Math.round(market.noPrice * 100) }}¢</span>
       </button>
     </div>
+
+    <!-- 交易弹窗 -->
+    <TradeModal
+      :show="showTradeModal"
+      :market="market"
+      :tradeType="tradeType"
+      @close="showTradeModal = false"
+      @success="handleTradeSuccess"
+    />
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
+import { getMarketStatusText, getMarketStatusClass } from '../constants/marketStatus'
+import OpenMarketButton from './OpenMarketButton.vue'
+import TradeModal from './TradeModal.vue'
 
 const props = defineProps({
   market: {
@@ -66,6 +86,10 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['bet', 'click'])
+
+// 交易弹窗状态
+const showTradeModal = ref(false)
+const tradeType = ref('yes')
 
 // 计算Yes的概率 = yesPrice / (yesPrice + noPrice)，向下取整保留两位小数
 const yesProbability = computed(() => {
@@ -139,46 +163,48 @@ const formatAddress = (address) => {
   return address
 }
 
-const getStatusText = (status) => {
-  const statusMap = {
-    0: '待审核',
-    1: '已拒绝',
-    2: '初审通过',
-    3: '终审通过',
-    4: '已发布',
-    5: '已关闭',
-    6: '裁决中',
-    7: '挑战中',
-    8: '已结算'
-  }
-  return statusMap[status] || `Status ${status}`
-}
-
-const getStatusClass = (status) => {
-  const classMap = {
-    0: 'status-pending',
-    1: 'status-rejected',
-    2: 'status-preliminary',
-    3: 'status-final',
-    4: 'status-active',
-    5: 'status-closed',
-    6: 'status-arbitrating',
-    7: 'status-challenging',
-    8: 'status-resolved'
-  }
-  return classMap[status] || 'status-unknown'
-}
-
 const handleCardClick = () => {
   emit('click')
 }
 
+const handleDeployed = (data) => {
+  console.log('[MarketCard] 市场已部署:', data)
+
+  // ✅ 如果前端解析出了 marketAddress，立即更新到市场对象
+  // 这样用户可以立即开始交易，无需等待后端更新数据库
+  if (data.marketAddress && props.market.id === data.marketId) {
+    props.market.marketAddress = data.marketAddress
+    props.market.onChainMarketId = data.onChainMarketId
+    console.log('[MarketCard] ✅ 已更新 marketAddress, 用户可以立即交易:', data.marketAddress)
+  }
+}
+
 const handleBet = (type) => {
+  // 检查市场是否已部署
+  if (!props.market.marketAddress) {
+    alert('该市场尚未部署到区块链，无法交易。请等待市场部署完成。')
+    return
+  }
+
+  // 打开交易弹窗
+  tradeType.value = type
+  showTradeModal.value = true
+}
+
+const handleTradeSuccess = (data) => {
+  console.log('[MarketCard] 交易成功:', data)
+
+  // 通知父组件
   emit('bet', {
     marketId: props.market.id,
-    type,
-    price: type === 'yes' ? props.market.yesPrice : props.market.noPrice
+    type: data.type,
+    amount: data.amount,
+    cost: data.cost,
+    txHash: data.txHash
   })
+
+  // 这里可以添加成功提示
+  // 例如刷新余额、更新价格等
 }
 </script>
 
@@ -221,13 +247,15 @@ const handleBet = (type) => {
 }
 
 .tag-item {
-  background: var(--accent);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   padding: 0.25rem 0.75rem;
   border-radius: 6px;
   font-weight: 500;
   font-size: 0.75rem;
   white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .status-badge {
@@ -286,6 +314,21 @@ const handleBet = (type) => {
 .status-unknown {
   background: var(--bg-tertiary);
   color: var(--text-secondary);
+}
+
+.status-deploying {
+  background: #E0E7FF;
+  color: #4338CA;
+}
+
+.status-final-arbitrated {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.status-settling {
+  background: #FEF3C7;
+  color: #92400E;
 }
 
 .end-date {

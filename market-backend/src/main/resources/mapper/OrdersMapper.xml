@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.market.business.mapper.OrdersMapper">
+  <resultMap id="BaseResultMap" type="com.market.business.entity.Orders">
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="parent_id" jdbcType="BIGINT" property="parentId" />
+    <result column="client_order_id" jdbcType="VARCHAR" property="clientOrderId" />
+    <result column="market_id" jdbcType="VARCHAR" property="marketId" />
+    <result column="wallet_address" jdbcType="VARCHAR" property="walletAddress" />
+    <result column="token_type" jdbcType="TINYINT" property="tokenType" />
+    <result column="side" jdbcType="TINYINT" property="side" />
+    <result column="order_type" jdbcType="TINYINT" property="orderType" />
+    <result column="price" jdbcType="DECIMAL" property="price" />
+    <result column="amount" jdbcType="DECIMAL" property="amount" />
+    <result column="filled_amount" jdbcType="DECIMAL" property="filledAmount" />
+    <result column="remaining_amount" jdbcType="DECIMAL" property="remainingAmount" />
+    <result column="locked_buy_amount" jdbcType="DECIMAL" property="lockedBuyAmount" />
+    <result column="locked_sell_amount" jdbcType="DECIMAL" property="lockedSellAmount" />
+    <result column="status" jdbcType="TINYINT" property="status" />
+    <result column="chain_tx_hash" jdbcType="VARCHAR" property="chainTxHash" />
+    <result column="tx_status" jdbcType="TINYINT" property="txStatus" />
+    <result column="expire_time" jdbcType="TIMESTAMP" property="expireTime" />
+    <result column="cancelled_time" jdbcType="TIMESTAMP" property="cancelledTime" />
+    <result column="created_time" jdbcType="TIMESTAMP" property="createdTime" />
+    <result column="updated_time" jdbcType="TIMESTAMP" property="updatedTime" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, parent_id, client_order_id, market_id, wallet_address, token_type, side, order_type, 
+    price, amount, filled_amount, remaining_amount, locked_buy_amount, locked_sell_amount, 
+    status, chain_tx_hash, tx_status, expire_time, cancelled_time, created_time, updated_time
+  </sql>
+
+
+</mapper>

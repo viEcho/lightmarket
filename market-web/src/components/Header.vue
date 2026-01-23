@@ -104,6 +104,12 @@
               </div>
             </div>
             <div class="user-menu-footer">
+              <button class="add-wallet-btn" @click="openAddWalletModal">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 2V14M2 8H14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                添加钱包
+              </button>
               <button class="logout-btn" @click="handleDisconnect">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M6 3L2 8L6 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -117,6 +123,76 @@
       </div>
     </div>
   </header>
+
+  <!-- 添加钱包弹窗 -->
+  <div
+    v-if="showAddWalletModal"
+    class="add-wallet-modal-overlay"
+    @click.self="closeAddWalletModal"
+  >
+    <div class="add-wallet-modal">
+      <!-- 步骤 1: 连接新钱包 -->
+      <div v-if="addWalletStep === 1" class="modal-step">
+        <div class="modal-header">
+          <h3>添加新钱包</h3>
+          <button @click="closeAddWalletModal" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="step-description">连接要添加的新钱包地址</p>
+          <div v-if="addWalletError" class="error-message">
+            {{ addWalletError }}
+          </div>
+          <button
+            @click="connectNewWallet"
+            :disabled="isAddingWallet"
+            class="connect-wallet-btn"
+          >
+            <span v-if="isAddingWallet">连接中...</span>
+            <span v-else>连接新钱包</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 步骤 2: 签名验证 -->
+      <div v-if="addWalletStep === 2" class="modal-step">
+        <div class="modal-header">
+          <h3>验证钱包所有权</h3>
+          <button @click="closeAddWalletModal" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="wallet-info">
+            <p><strong>钱包地址:</strong></p>
+            <p class="address">{{ newWalletAddress }}</p>
+          </div>
+          <p class="step-description">请签名以验证您是该钱包的所有者</p>
+          <div v-if="addWalletError" class="error-message">
+            {{ addWalletError }}
+          </div>
+          <button
+            @click="signAndAddWallet"
+            :disabled="isAddingWallet"
+            class="sign-btn"
+          >
+            <span v-if="isAddingWallet">签名中...</span>
+            <span v-else>签名并添加</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 步骤 3: 完成 -->
+      <div v-if="addWalletStep === 3" class="modal-step">
+        <div class="modal-header">
+          <h3>钱包添加成功</h3>
+          <button @click="closeAddWalletModal" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body success-body">
+          <div class="success-icon">✅</div>
+          <p>钱包已成功添加到您的账号</p>
+          <p class="success-address">{{ newWalletAddress }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -124,11 +200,20 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { storeToRefs } from 'pinia'
+import { addWallet, getNonce } from '@/utils/api'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const showUserMenu = ref(false)
+
+// 添加钱包弹窗状态
+const showAddWalletModal = ref(false)
+const addWalletStep = ref(1) // 1: 选择钱包, 2: 签名验证, 3: 完成
+const newWalletAddress = ref('')
+const isAddingWallet = ref(false)
+const addWalletError = ref('')
+const nonceData = ref(null)
 
 // 使用 storeToRefs 保持响应性
 const { isConnected, walletAddress, shortAddress, balance, chainId, isLoading, user } = storeToRefs(userStore)
@@ -162,27 +247,21 @@ const handleRefreshBalance = async () => {
 }
 
 const handleMyMarkets = async () => {
-  console.log('[Header] My Markets clicked, isConnected:', isConnected.value)
-
   // 跳转到 markets 页面，并带上 filter=my 参数
   if (route.path === '/markets') {
     // 如果已经在 markets 页面，通过自定义事件触发
-    console.log('[Header] Already on markets page, triggering event')
     const event = new CustomEvent('load-my-markets')
     window.dispatchEvent(event)
   } else {
     // 跳转到 markets 页面并带上参数
-    console.log('[Header] Navigating to /markets?filter=my')
     await router.push({ path: '/markets', query: { filter: 'my' } })
   }
 }
 
 const handleLogoClick = () => {
-  console.log('[Header] Logo clicked')
   if (route.path === '/markets') {
     // 已经在 markets 页面，清除 query 参数并触发返回所有市场事件
     if (route.query.filter) {
-      console.log('[Header] Clearing query params and triggering back-to-all')
       router.replace({ path: '/markets', query: {} })
     }
     const event = new CustomEvent('back-to-all-markets')
@@ -194,11 +273,9 @@ const handleLogoClick = () => {
 }
 
 const handleMarketsClick = () => {
-  console.log('[Header] Markets link clicked')
   if (route.path === '/markets') {
     // 已经在 markets 页面，清除 query 参数并触发返回所有市场事件
     if (route.query.filter) {
-      console.log('[Header] Clearing query params and triggering back-to-all')
       router.replace({ path: '/markets', query: {} })
     }
     const event = new CustomEvent('back-to-all-markets')
@@ -217,9 +294,132 @@ const getNetworkName = (chainId) => {
     137: 'Polygon',
     80001: 'Mumbai',
     56: 'BSC',
-    97: 'BSC Testnet'
+    97: 'BSC Testnet',
+    31337: 'Hardhat Local'
   }
   return networks[chainId] || `Chain ${chainId}`
+}
+
+// 添加钱包相关函数
+const openAddWalletModal = () => {
+  showAddWalletModal.value = true
+  addWalletStep.value = 1
+  addWalletError.value = ''
+  newWalletAddress.value = ''
+  nonceData.value = null
+  showUserMenu.value = false
+}
+
+const closeAddWalletModal = () => {
+  showAddWalletModal.value = false
+  addWalletStep.value = 1
+  addWalletError.value = ''
+  newWalletAddress.value = ''
+  nonceData.value = null
+}
+
+const connectNewWallet = async () => {
+  if (!window.ethereum) {
+    addWalletError.value = '请安装 MetaMask 钱包'
+    return
+  }
+
+  try {
+    // 请求连接钱包
+    const accounts = await window.ethereum.request({
+      method: 'eth_requestAccounts'
+    })
+
+    if (accounts.length > 0) {
+      newWalletAddress.value = accounts[0]
+
+      // 检查是否和当前钱包相同
+      if (newWalletAddress.value.toLowerCase() === walletAddress.value.toLowerCase()) {
+        addWalletError.value = '这是当前已连接的钱包地址'
+        return
+      }
+
+      // 进入下一步：获取 nonce
+      await getWalletNonce()
+    }
+  } catch (error) {
+    console.error('连接钱包失败:', error)
+    addWalletError.value = `连接失败: ${error.message}`
+  }
+}
+
+const getWalletNonce = async () => {
+  isAddingWallet.value = true
+  addWalletError.value = ''
+
+  try {
+    const currentChainId = await window.ethereum.request({ method: 'eth_chainId' })
+    const chainIdNumber = parseInt(currentChainId, 16)
+
+    const response = await getNonce({
+      walletAddress: newWalletAddress.value,
+      chainId: chainIdNumber
+    })
+
+    if (response.success && response.code === 1000) {
+      nonceData.value = response.data
+      addWalletStep.value = 2
+    } else {
+      addWalletError.value = response.message || '获取 Nonce 失败'
+    }
+  } catch (error) {
+    console.error('获取 Nonce 失败:', error)
+    addWalletError.value = `获取 Nonce 失败: ${error.message}`
+  } finally {
+    isAddingWallet.value = false
+  }
+}
+
+const signAndAddWallet = async () => {
+  if (!nonceData.value) {
+    addWalletError.value = '请先获取 Nonce'
+    return
+  }
+
+  isAddingWallet.value = true
+  addWalletError.value = ''
+
+  try {
+    // 获取签名
+    const message = nonceData.value.message
+    const { ethers } = await import('ethers')
+    const provider = new ethers.BrowserProvider(window.ethereum)
+    const signer = await provider.getSigner()
+    const signature = await signer.signMessage(message)
+
+    // 获取当前 chainId
+    const currentChainId = await window.ethereum.request({ method: 'eth_chainId' })
+    const chainIdNumber = parseInt(currentChainId, 16)
+
+    // 调用后端 API 添加钱包
+    const response = await addWallet({
+      userId: user.value.id,
+      walletAddress: newWalletAddress.value,
+      chainId: chainIdNumber,
+      walletType: 'metamask',
+      signature: signature
+    })
+
+    if (response.success && response.code === 1000) {
+      addWalletStep.value = 3
+      // 3秒后关闭弹窗
+      setTimeout(() => {
+        closeAddWalletModal()
+      }, 3000)
+    } else {
+      addWalletError.value = response.message || '添加钱包失败'
+    }
+  } catch (error) {
+    console.error('添加钱包失败:', error)
+    addWalletError.value = `添加失败: ${error.message}`
+  } finally {
+    isAddingWallet.value = false
+  }
 }
 
 // Close dropdown when clicking outside
@@ -235,7 +435,6 @@ onMounted(() => {
 
   // 监听来自其他页面的连接钱包请求
   window.addEventListener('connect-wallet', async () => {
-    console.log('[Header] connect-wallet event received')
     await handleConnect()
   })
 })
@@ -567,5 +766,178 @@ onMounted(() => {
 
 .logout-btn:active {
   transform: scale(0.98);
+}
+
+/* 添加钱包按钮 */
+.add-wallet-btn {
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.add-wallet-btn:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.add-wallet-btn:active {
+  transform: scale(0.98);
+}
+
+/* 添加钱包弹窗 */
+.add-wallet-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.add-wallet-modal {
+  background: white;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 480px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-step .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-step .modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.modal-step .modal-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.step-description {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 0;
+  text-align: center;
+}
+
+.wallet-info {
+  padding: 16px;
+  background: var(--input-bg);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.wallet-info p {
+  margin: 4px 0;
+}
+
+.wallet-info .address {
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 13px;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.connect-wallet-btn,
+.sign-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.connect-wallet-btn:hover:not(:disabled),
+.sign-btn:hover:not(:disabled) {
+  background: #1a1a1a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.connect-wallet-btn:active:not(:disabled),
+.sign-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.connect-wallet-btn:disabled,
+.sign-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  padding: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #dc2626;
+  font-size: 14px;
+  text-align: center;
+}
+
+.success-body {
+  text-align: center;
+  padding: 32px 24px;
+}
+
+.success-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.success-body p {
+  margin: 8px 0;
+  color: var(--text-primary);
+}
+
+.success-address {
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 13px;
+  color: var(--text-secondary);
+  word-break: break-all;
 }
 </style>

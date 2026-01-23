@@ -1,14 +1,14 @@
 <template>
   <div class="market-detail-container">
     <!-- 审核状态横幅 -->
-    <div v-if="market" :class="['status-banner', getBannerClass(market.status)]">
+    <div v-if="market" :class="['status-banner', getBannerClass(market.marketStatus)]">
       <div class="banner-content">
         <div class="banner-icon">
-          <svg v-if="market.status === 'pending'" width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <svg v-if="[0, 2, 3].includes(market.marketStatus)" width="24" height="24" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
             <path d="M12 8V12L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
-          <svg v-else-if="market.status === 'approved'" width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <svg v-else-if="[4, 5].includes(market.marketStatus)" width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
           <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -18,10 +18,10 @@
         </div>
         <div class="banner-text">
           <div class="banner-title">
-            {{ getStatusTitle(market.status, market.stage) }}
+            {{ getStatusTitle(market.marketStatus) }}
           </div>
           <div class="banner-desc">
-            {{ getStatusDesc(market.status, market.stage) }}
+            {{ getStatusDesc(market.marketStatus) }}
           </div>
         </div>
       </div>
@@ -77,7 +77,7 @@
       </div>
 
       <!-- Trading Charts and Orderbook -->
-      <div v-if="['approved', 'published'].includes(market.status)" class="trading-charts-section">
+      <div v-if="[4, 5].includes(market.marketStatus)" class="trading-charts-section">
         <div class="charts-row">
           <!-- Price Chart -->
           <PriceChart :marketId="marketId" class="price-chart-full" />
@@ -166,7 +166,7 @@
       </div>
 
       <!-- Trading操作 -->
-      <div v-if="['approved', 'published'].includes(market.status)" class="trading-section">
+      <div v-if="[4, 5].includes(market.marketStatus)" class="trading-section">
         <h3 class="section-title">Trading</h3>
         <div class="trading-panel">
           <div class="trading-options">
@@ -212,7 +212,7 @@
       </div>
 
       <!-- 待审核状态Tip -->
-      <div v-else-if="market.status === 'pending'" class="pending-notice">
+      <div v-else-if="[0, 2].includes(market.marketStatus)" class="pending-notice">
         <div class="notice-icon">
           <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
             <circle cx="24" cy="24" r="18" stroke="#F59E0B" stroke-width="2"/>
@@ -222,9 +222,9 @@
         <div class="notice-content">
           <div class="notice-title">This market is under review</div>
           <div class="notice-desc">
-            市场通过审核后将开放Trading。当前阶段：<strong>{{ getStageName(market.stage) }}</strong>
+            市场通过审核后将开放Trading。当前阶段：<strong>{{ getStageName(market.marketStatus) }}</strong>
           </div>
-          <div v-if="market.stage === 'pre-review'" class="notice-tip">
+          <div v-if="market.marketStatus === 0" class="notice-tip">
             <div class="tip-title">Tip：</div>
             <ul class="tip-list">
               <li>Pre-review stage mainly checks basic information and format</li>
@@ -255,6 +255,7 @@ import { useRouter } from 'vue-router';
 import { mockMarkets } from '../data/markets';
 import { useUserStore } from '../stores/user';
 import { useMarkets } from '../composables/useMarkets';
+import { getMarketStatusText, getMarketStatusClass } from '../constants/marketStatus';
 import PriceChart from './PriceChart.vue';
 import OrderBook from './OrderBook.vue';
 import RecentTrades from './RecentTrades.vue';
@@ -314,30 +315,55 @@ export default {
       router.push('/markets');
     };
 
-    const getStatusTitle = (status, stage) => {
-      if (status === 'pending') {
-        return stage === 'pre-review' ? 'In Pre-review' : 'In Final-review';
-      } else if (status === 'approved' || status === 'published') {
+    const getStatusTitle = (marketStatus) => {
+      if (marketStatus === 0) {
+        return 'In Pre-review';
+      } else if (marketStatus === 2) {
+        return 'Preliminary Approved';
+      } else if (marketStatus === 3) {
+        return 'Final Approved';
+      } else if (marketStatus === 4) {
+        return 'Deploying';
+      } else if (marketStatus === 5) {
         return 'Open for Trading';
-      } else {
+      } else if (marketStatus === 1) {
         return 'Rejected';
-      }
-    };
-
-    const getStatusDesc = (status, stage) => {
-      if (status === 'pending') {
-        return stage === 'pre-review'
-          ? 'Market is in pre-review, estimated 1-2 business days'
-          : 'Market is in final-review, estimated 3-5 business days';
-      } else if (status === 'approved' || status === 'published') {
-        return '市场已通过审核并开放Trading';
+      } else if (marketStatus === 6) {
+        return 'Closed';
+      } else if (marketStatus === 99) {
+        return 'Settled';
       } else {
-        return 'Market did not pass review';
+        return 'Unknown Status';
       }
     };
 
-    const getStageName = (stage) => {
-      return stage === 'pre-review' ? '预审' : '终审';
+    const getStatusDesc = (marketStatus) => {
+      if (marketStatus === 0) {
+        return 'Market is in pre-review, estimated 1-2 business days';
+      } else if (marketStatus === 2) {
+        return 'Market has passed preliminary review, waiting for final review';
+      } else if (marketStatus === 3) {
+        return 'Market has passed final review, waiting for deployment';
+      } else if (marketStatus === 4) {
+        return 'Market is being deployed to blockchain';
+      } else if (marketStatus === 5) {
+        return '市场已通过审核并开放Trading';
+      } else if (marketStatus === 1) {
+        return 'Market did not pass review';
+      } else if (marketStatus === 6) {
+        return 'Market has been closed';
+      } else if (marketStatus === 99) {
+        return 'Market has been settled';
+      } else {
+        return '';
+      }
+    };
+
+    const getStageName = (marketStatus) => {
+      if (marketStatus === 0) return '预审';
+      if (marketStatus === 2) return '初审通过';
+      if (marketStatus === 3) return '终审通过';
+      return '未知';
     };
 
     const getCategoryName = (category) => {
@@ -430,9 +456,13 @@ export default {
       return (price * 100).toFixed(1);
     };
 
-    const getBannerClass = (status) => {
-      if (status === 'published') return 'approved';
-      return status;
+    const getBannerClass = (marketStatus) => {
+      if ([4, 5].includes(marketStatus)) return 'approved';
+      if ([0, 2, 3].includes(marketStatus)) return 'pending';
+      if (marketStatus === 1) return 'rejected';
+      if (marketStatus === 6) return 'closed';
+      if (marketStatus === 99) return 'settled';
+      return 'pending';
     };
 
     return {
@@ -450,7 +480,9 @@ export default {
       selectOption,
       calculateExpectedReturn,
       getAveragePrice,
-      getBannerClass
+      getBannerClass,
+      getMarketStatusText,
+      getMarketStatusClass
     };
   }
 };

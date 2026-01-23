@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.market.business.mapper.UserPositionsMapper">
+  <resultMap id="BaseResultMap" type="com.market.business.entity.UserPositions">
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="user_id" jdbcType="BIGINT" property="userId" />
+    <result column="market_id" jdbcType="VARCHAR" property="marketId" />
+    <result column="yes_balance" jdbcType="DECIMAL" property="yesBalance" />
+    <result column="no_balance" jdbcType="DECIMAL" property="noBalance" />
+    <result column="locked_yes" jdbcType="DECIMAL" property="lockedYes" />
+    <result column="locked_no" jdbcType="DECIMAL" property="lockedNo" />
+    <result column="claimable_yes" jdbcType="DECIMAL" property="claimableYes" />
+    <result column="claimable_no" jdbcType="DECIMAL" property="claimableNo" />
+    <result column="last_sync_block" jdbcType="BIGINT" property="lastSyncBlock" />
+    <result column="created_time" jdbcType="TIMESTAMP" property="createdTime" />
+    <result column="updated_time" jdbcType="TIMESTAMP" property="updatedTime" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, user_id, market_id, yes_balance, no_balance, locked_yes, locked_no, claimable_yes, 
+    claimable_no, last_sync_block, created_time, updated_time
+  </sql>
+
+</mapper>

@@ -4,9 +4,11 @@ import com.market.business.global.PageVO;
 import com.market.business.global.Result;
 import com.market.business.query.AdminApproveQuery;
 import com.market.business.query.MarketApproveQuery;
+import com.market.business.query.WalletQuery;
 import com.market.business.service.AdminService;
 import com.market.business.vo.AdminStatisticsVO;
 import com.market.business.vo.MarketVO;
+import com.market.business.vo.WalletVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -58,5 +60,19 @@ public class AdminController {
     public Result<AdminStatisticsVO> getStatistics() {
         AdminStatisticsVO stats = adminService.getStatistics();
         return Result.success(stats);
+    }
+
+    /**
+     * 根据钱包地址查询用户信息
+     */
+    @Operation(summary = "查询钱包信息", description = "根据钱包地址查询用户是否在平台注册")
+    @PostMapping("/wallet/query")
+    public Result<WalletVO> getWalletByAddress(@Validated @RequestBody WalletQuery query) {
+        log.info("[AdminController] 查询钱包信息, walletAddress: {}", query.getWalletAddress());
+        WalletVO walletVO = adminService.getWalletByAddress(query);
+        if (walletVO == null) {
+            return Result.fail(1001, "钱包不存在于系统中");
+        }
+        return Result.success(walletVO);
     }
 }

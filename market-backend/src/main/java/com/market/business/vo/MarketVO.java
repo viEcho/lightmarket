@@ -1,6 +1,7 @@
 package com.market.business.vo;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.market.business.entity.Market;
 import com.market.business.enums.AiEnum;
 import com.market.business.enums.TagEnum;
 import com.market.business.utils.EnumUtil;
@@ -28,6 +29,9 @@ public class MarketVO {
     @Schema(description = "市场唯一标识")
     private String marketId;
 
+    @Schema(description = "市场合约地址")
+    private String marketAddress;
+
     @Schema(description = "用户ID")
     private Long userId;
 
@@ -49,7 +53,7 @@ public class MarketVO {
     private String oracleSource;
 
     @Schema(description = "结算方式：0-AI裁决 1-人工")
-    private Byte resolutionMethod;
+    private Integer resolutionMethod;
 
     @Schema(description = "AI裁决模型列表")
     private List<Option<Integer>> aiModels;
@@ -57,8 +61,8 @@ public class MarketVO {
     @Schema(description = "市场标签列表")
     private List<Option<Integer>> tags;
 
-    @Schema(description = "市场状态：0-待审核，1-已拒绝，2-审核通过，3-已发布，4-已关闭，5-裁决中，6-挑战中，7-已结算")
-    private Byte marketStatus;
+    @Schema(description = "市场状态：0-待审核，1-已拒绝，2-初审通过，3-终审通过，4-deploying发布中，5-已发布上链open，6-已关闭待裁决，7-裁决中，8-挑战中，9-已终裁，10-结算中，99-已结算")
+    private Integer marketStatus;
 
     @Schema(description = "基础流动性（USDC）")
     private BigDecimal baseLiquidity;
@@ -70,13 +74,13 @@ public class MarketVO {
     private BigDecimal noPrice;
 
     @Schema(description = "最终结果：0-未结算 1-YES 2-NO 3-Invalid")
-    private Byte resolvedOutcome;
+    private Integer resolvedOutcome;
 
     @Schema(description = "累计成交量（USDC）")
     private BigDecimal totalVolume;
 
     @Schema(description = "风控状态：0-正常 1-冻结 2-调查中")
-    private Byte riskStatus;
+    private Integer riskStatus;
 
     @Schema(description = "运营排序权重")
     private Integer weight;
@@ -98,7 +102,7 @@ public class MarketVO {
     /**
      * 从 Entity 转换为 VO
      */
-    public static MarketVO fromEntity(com.market.business.entity.Market entity) {
+    public static MarketVO fromEntity(Market entity) {
         MarketVO vo = new MarketVO();
         BeanUtils.copyProperties(entity, vo);
 
@@ -110,6 +114,10 @@ public class MarketVO {
         // 转换标签字符串为枚举列表
         if (entity.getTags() != null) {
             vo.setTags(EnumUtil.convertCodesToOptions(entity.getTags(), TagEnum.class));
+        }
+        
+        if(entity.getCloseTime().getTime() <= System.currentTimeMillis()){
+            vo.setMarketStatus(99);
         }
         return vo;
     }

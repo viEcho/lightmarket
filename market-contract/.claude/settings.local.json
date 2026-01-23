@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(npx hardhat compile:*)",
+      "Bash(npx hardhat clean:*)",
+      "Bash(tree:*)",
+      "Bash(grep:*)",
+      "Bash(mvn compile:*)",
+      "Bash(npx hardhat run:*)",
+      "Bash(npx hardhat node:*)",
+      "Bash(lsof:*)"
+    ]
+  }
+}

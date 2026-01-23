@@ -2,6 +2,8 @@ package com.market.business.service;
 
 import com.market.business.global.PageVO;
 import com.market.business.query.MarketAddQuery;
+import com.market.business.query.MarketDeployingQuery;
+import com.market.business.query.MarketOpeningQuery;
 import com.market.business.query.MarketPageQuery;
 import com.market.business.vo.MarketVO;
 
@@ -37,4 +39,20 @@ public interface MarketService {
      * @return 创建的市场ID
      */
     String add(MarketAddQuery query, Long userId);
+
+    /**
+     * 开始发布市场
+     *
+     * @param query 请求参数
+     * @return 是否成功
+     */
+    Boolean opening(MarketOpeningQuery query);
+
+    /**
+     * 市场部署中
+     *
+     * @param query 请求参数
+     * @return 是否成功
+     */
+    Boolean deploying(MarketDeployingQuery query);
 }

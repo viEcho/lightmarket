@@ -4,6 +4,7 @@
   <resultMap id="BaseResultMap" type="com.market.business.entity.Market">
     <id column="id" jdbcType="BIGINT" property="id" />
     <result column="market_id" jdbcType="VARCHAR" property="marketId" />
+    <result column="market_address" jdbcType="VARCHAR" property="marketAddress" />
     <result column="user_id" jdbcType="BIGINT" property="userId" />
     <result column="title" jdbcType="VARCHAR" property="title" />
     <result column="description" jdbcType="VARCHAR" property="description" />
@@ -28,10 +29,21 @@
     <result column="updated_time" jdbcType="TIMESTAMP" property="updatedTime" />
   </resultMap>
   <sql id="Base_Column_List">
-    id, market_id, user_id, title, description, close_time, resolve_time, oracle_source,
-    resolution_method, ai_model, tags, market_status, base_liquidity, yes_price, no_price, 
-    resolved_outcome, total_volume, risk_status, weight, chain_id, tx_hash, creator, 
+    id, market_id, market_address, user_id, title, description, close_time, resolve_time, oracle_source,
+    resolution_method, ai_model, tags, market_status, base_liquidity, yes_price, no_price,
+    resolved_outcome, total_volume, risk_status, weight, chain_id, tx_hash, creator,
     created_time, updated_time
   </sql>
+
+
+  <!-- 更新市场状态和地址 -->
+  <update id="updateMarketAddressAndStatus">
+    UPDATE market
+    SET market_address = #{marketAddress},
+        on_chain_market_id = #{chainId},
+        market_status = #{marketStatus},
+        updated_time = #{updatedTime}
+    WHERE market_id = #{marketId}
+  </update>
 
 </mapper>

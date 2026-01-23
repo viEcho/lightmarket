@@ -1,0 +1,25 @@
+-- 管理员表
+CREATE TABLE `admin_emp` (
+     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+     `username` VARCHAR(50) NOT NULL COMMENT '用户名',
+     `password` VARCHAR(255) NOT NULL COMMENT '密码（加密存储）',
+     `nickname` VARCHAR(50) NULL COMMENT '昵称',
+     `avatar` VARCHAR(256) NULL DEFAULT '' COMMENT '头像URL',
+     `email` VARCHAR(40) NULL COMMENT '邮箱',
+     `mobile` VARCHAR(20) NULL COMMENT '手机号',
+     `gender` TINYINT NULL DEFAULT 0 COMMENT '性别：0-未知，1-男，2-女',
+     `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态：-1-禁用，1-正常',
+     `type` TINYINT NOT NULL DEFAULT 1 COMMENT '管理员类型：1-超级管理员，2-普通管理员',
+     `last_login_ip` VARCHAR(50) NULL COMMENT '最后登录IP',
+     `last_login_time` DATETIME NULL COMMENT '最后登录时间',
+     `login_count` INT NOT NULL DEFAULT 0 COMMENT '登录次数',
+     `remark` VARCHAR(500) NULL COMMENT '备注',
+     `dept_id` BIGINT NULL COMMENT '部门ID',
+     `created_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+     `updated_time` DATETIME NULL ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+     `created_by` VARCHAR(50) NULL COMMENT '创建人',
+     `updated_by` VARCHAR(50) NULL COMMENT '更新人',
+     `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-正常，1-删除',
+     PRIMARY KEY (`id`),
+     UNIQUE KEY `uk_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='管理员表';
