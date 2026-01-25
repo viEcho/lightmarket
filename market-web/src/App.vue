@@ -21,6 +21,15 @@ const isAdminPage = computed(() => {
 })
 </script>
 
+<style>
+/* 全局样式确保 html 和 body 有高度 */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+</style>
+
 <style scoped>
 .app {
   height: 100vh;
@@ -32,14 +41,13 @@ const isAdminPage = computed(() => {
 
 .app-content {
   flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding-top: 80px; /* 为 fixed Header 留出空间 */
-  box-sizing: border-box;
+  position: relative;
+  /* 不设置 margin-top，让子元素自己处理 */
 }
 
 .app-content.admin-page {
-  padding-top: 0; /* admin页面不需要顶部padding */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 </style>

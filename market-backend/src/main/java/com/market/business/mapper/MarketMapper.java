@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.market.business.entity.Market;
 import org.apache.ibatis.annotations.Param;
 
+import java.math.BigDecimal;
+
 /**
  * Market Mapper
  *
@@ -28,4 +30,16 @@ public interface MarketMapper extends BaseMapper<Market> {
                                      @Param("chainId") String chainId,
                                     @Param("marketStatus") Integer marketStatus,
                                     @Param("updatedTime") java.util.Date updatedTime);
+
+    /**
+     * 更新市场价格
+     *
+     * @param marketAddress 市场合约地址
+     * @param yesPrice YES 价格
+     * @param noPrice NO 价格
+     * @return 影响行数
+     */
+    int updatePrice(@Param("marketAddress") String marketAddress,
+                   @Param("yesPrice") BigDecimal yesPrice,
+                   @Param("noPrice") BigDecimal noPrice);
 }

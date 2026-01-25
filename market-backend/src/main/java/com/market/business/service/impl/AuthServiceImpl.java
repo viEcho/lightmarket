@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 import javax.annotation.Resource;
 /**
@@ -320,7 +321,8 @@ public class AuthServiceImpl implements AuthService {
         QueryWrapper<UserWallet> walletWrapper = new QueryWrapper<>();
         walletWrapper.eq(UserWallet.WALLET_ADDRESS, walletAddress);
 
-        UserWallet userWallet = userWalletMapper.selectOne(walletWrapper);
+        List<UserWallet> wallets = userWalletMapper.selectList(walletWrapper);
+        UserWallet userWallet = wallets.get(0);
 
         User user;
         if (userWallet != null) {

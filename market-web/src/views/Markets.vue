@@ -142,6 +142,7 @@ const handleScroll = () => {
 
     // 距离底部 200px 时触发加载
     if (distanceToBottom < 200) {
+      console.log('[Markets] 📜 触发加载下一页, distanceToBottom:', distanceToBottom)
       isLoadingMore = true
       loadNextPage()
 
@@ -190,9 +191,37 @@ onMounted(async () => {
 
   // 等待 DOM 渲染完成后添加滚动监听
   await nextTick()
-  if (scrollContainer.value) {
-    scrollContainer.value.addEventListener('scroll', handleScroll, { passive: true })
-  }
+
+  // 多次尝试确保 DOM 已完全渲染
+  setTimeout(() => {
+    console.log('[Markets] === 布局调试信息 ===')
+    console.log('[Markets] scrollContainer.value:', scrollContainer.value)
+
+    if (scrollContainer.value) {
+      const rect = scrollContainer.value.getBoundingClientRect()
+      console.log('[Markets] 滚动容器 getBoundingClientRect:', {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height
+      })
+      console.log('[Markets] 滚动容器 scrollHeight:', scrollContainer.value.scrollHeight)
+      console.log('[Markets] 滚动容器 clientHeight:', scrollContainer.value.clientHeight)
+      console.log('[Markets] 滚动容器 offsetHeight:', scrollContainer.value.offsetHeight)
+      console.log('[Markets] 是否显示滚动条:', scrollContainer.value.scrollHeight > scrollContainer.value.clientHeight)
+      console.log('[Markets] overflow-y 值:', getComputedStyle(scrollContainer.value).overflowY)
+
+      scrollContainer.value.addEventListener('scroll', handleScroll, { passive: true })
+      console.log('[Markets] ✅ 滚动监听已添加')
+    } else {
+      console.error('[Markets] ❌ scrollContainer.value 为 null')
+    }
+
+    console.log('[Markets] 市场数量:', markets.value.length)
+    console.log('[Markets] hasMore:', hasMore.value)
+    console.log('[Markets] isLoading:', isLoading.value)
+    console.log('[Markets] === 调试信息结束 ===')
+  }, 500)
 })
 
 // 监听路由query参数变化
@@ -238,15 +267,20 @@ const navigateTo = (page, param) => {
   padding: 0rem 2rem;
   width: 100%;
   box-sizing: border-box;
-  height: 100%;
+  /* 使用 absolute 定位和固定高度 */
+  position: absolute;
+  top: 72px; /* Header 高度 */
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .page-header {
   margin-bottom: 0.75rem;
-  flex-shrink: 0; /* 防止 header 被压缩 */
+  flex-shrink: 0;
+  padding-top: 1rem; /* 顶部间距 */
 }
 
 .page-title {
@@ -306,10 +340,9 @@ const navigateTo = (page, param) => {
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 10px;
-  min-height: 0;
+  min-height: 0; /* 重要：允许 flex 子项缩小 */
   /* 确保滚动条始终可见，即使内容不足 */
-  display: flex;
-  flex-direction: column;
+  display: block; /* 改为 block，避免嵌套 flex 的问题 */
 }
 
 /* 自定义滚动条样式 */

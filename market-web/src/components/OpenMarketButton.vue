@@ -218,17 +218,29 @@ const handleOpenMarket = async () => {
     // 步骤4: 调用合约创建市场
     console.log('[OpenMarket] 开始调用合约创建市场...')
 
+    // 使用临时变量保存回调中需要的数据
+    let deployData = {
+      txHash: null,
+      onChainMarketId: null,
+      marketAddress: null
+    }
+
     const contractResult = await openMarket(props.market, {
       onTransactionHash: (hash, onChainMarketId) => {
         console.log('[OpenMarket] ✅ 交易已提交, hash:', hash)
         console.log('[OpenMarket] onChainMarketId:', onChainMarketId)
         console.log('[OpenMarket] 准备通知后端 /market/deploying, marketId:', props.market.id)
 
-        // 立即通知后端(发送 txHash、onChainMarketId 和 marketAddress)
+        // 保存数据
+        deployData.txHash = hash
+        deployData.onChainMarketId = onChainMarketId
+
+        // 立即通知后端(发送 txHash 和 onChainMarketId)
+        // 注意：此时 marketAddress 还未知，需要等待交易确认后从事件解析
         notifyMarketDeploying(props.market.id, {
           txHash: hash,
           onChainMarketId: onChainMarketId,
-          marketAddress: contractResult.marketAddress // ✅ 前端解析的地址
+          marketAddress: null // 交易提交时未知，等待确认后更新
         }).then(response => {
           console.log('[OpenMarket] ✅ 后端通知成功:', response)
         }).catch(err => {
@@ -238,8 +250,29 @@ const handleOpenMarket = async () => {
       },
       onReceipt: (receipt) => {
         console.log('[OpenMarket] ✅ 交易已确认, Gas Used:', receipt.gasUsed?.toString())
+
+        // 注意：onReceipt 回调执行时，contractResult 可能还未赋值
+        // 但 marketAddress 会在 openMarket 函数内部解析后返回
+        // 我们在 openMarket 返回后再处理 marketAddress
       }
     })
+
+    // openMarket 返回后，marketAddress 已解析
+    if (contractResult.marketAddress) {
+      console.log('[OpenMarket] 交易确认，marketAddress 已解析:', contractResult.marketAddress)
+
+      // 更新 marketAddress 后再次通知后端
+      deployData.marketAddress = contractResult.marketAddress
+      notifyMarketDeploying(props.market.id, {
+        txHash: deployData.txHash || contractResult.txHash,
+        onChainMarketId: deployData.onChainMarketId || contractResult.onChainMarketId,
+        marketAddress: contractResult.marketAddress
+      }).then(response => {
+        console.log('[OpenMarket] ✅ 后端更新 marketAddress 成功:', response)
+      }).catch(err => {
+        console.error('[OpenMarket] ❌ 后端更新 marketAddress 失败:', err)
+      })
+    }
 
     if (!contractResult.success) {
       throw new Error(contractResult.error || '合约部署失败')

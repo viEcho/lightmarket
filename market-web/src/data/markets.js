@@ -12,6 +12,7 @@ export const mockMarkets = [
     liquidity: 500000,
     liquidityProviders: 12,
     status: "approved",
+    marketStatus: 5, // 已发布上链
     endTime: new Date("2025-12-31").getTime(),
     endDate: "2025-12-31",
     imageUrl: "https://images.unsplash.com/photo-1518546305927-5a555bb7020d?w=400",
@@ -34,7 +35,8 @@ export const mockMarkets = [
     liquidity: 350000,
     liquidityProviders: 8,
     status: "approved",
-    endTime: new Date("2025-12-31").getTime(),
+    marketStatus: 6, // 已关闭
+    endTime: Date.now() - 3600000, // 1小时前关闭
     endDate: "2025-12-31",
     imageUrl: "https://images.unsplash.com/photo-1622630998477-20aa696ecb05?w=400",
     creator: "EtherMax",
@@ -56,7 +58,8 @@ export const mockMarkets = [
     liquidity: 200000,
     liquidityProviders: 5,
     status: "approved",
-    endTime: new Date("2026-06-30").getTime(),
+    marketStatus: 7, // 裁决中
+    endTime: Date.now() - 7 * 3600000, // 7小时前关闭（在裁决期内）
     endDate: "2026-06-30",
     imageUrl: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400",
     creator: "TechVisionary",
@@ -78,7 +81,8 @@ export const mockMarkets = [
     liquidity: 300000,
     liquidityProviders: 7,
     status: "approved",
-    endTime: new Date("2030-12-31").getTime(),
+    marketStatus: 8, // 挑战中
+    endTime: Date.now() - 13 * 3600000, // 13小时前关闭（在挑战期内）
     endDate: "2030-12-31",
     imageUrl: "https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?w=400",
     creator: "SpaceEnthusiast",
@@ -100,7 +104,8 @@ export const mockMarkets = [
     liquidity: 1000000,
     liquidityProviders: 25,
     status: "approved",
-    endTime: new Date("2028-11-05").getTime(),
+    marketStatus: 99, // 已结算
+    endTime: Date.now() - 25 * 3600000, // 25小时前关闭（已过结算期）
     endDate: "2028-11-05",
     imageUrl: "https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?w=400",
     creator: "PoliticalWatcher",
@@ -122,7 +127,8 @@ export const mockMarkets = [
     liquidity: 150000,
     liquidityProviders: 4,
     status: "approved",
-    endTime: new Date("2026-01-31").getTime(),
+    marketStatus: 9, // 已终裁
+    endTime: Date.now() - 14 * 3600000, // 14小时前关闭（终裁完成）
     endDate: "2026-01-31",
     imageUrl: "https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=400",
     creator: "AutoAnalyst",

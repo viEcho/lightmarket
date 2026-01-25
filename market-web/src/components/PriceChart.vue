@@ -115,27 +115,6 @@ const periodDataCount = {
   'All': 12     // 12个月（一年）
 }
 
-// 生成模拟价格数据
-const generatePriceData = (basePrice, count, interval = 3600000) => {
-  const data = []
-  let price = basePrice
-  const now = Date.now()
-
-  for (let i = count; i >= 0; i--) {
-    const change = (Math.random() - 0.5) * 0.02
-    price = Math.max(0.01, Math.min(0.99, price + change))
-    const timestamp = now - i * interval
-    data.push({
-      timestamp: timestamp,
-      date: formatDateLabel(timestamp, interval),
-      price: Number(price.toFixed(3)),
-      volume: Math.floor(Math.random() * 100000) + 10000
-    })
-  }
-
-  return data
-}
-
 // 根据时间间隔格式化日期标签
 const formatDateLabel = (timestamp, interval) => {
   const date = new Date(timestamp)
@@ -180,7 +159,43 @@ const formatDateLabel = (timestamp, interval) => {
   }
 }
 
-const priceData = ref(generatePriceData(0.65, periodDataCount['1D'], periodInterval['1D']))
+// 生成模拟价格数据（使用固定的种子确保所有市场显示相同数据）
+const generatePriceData = (basePrice, count, interval = 3600000) => {
+  const data = []
+  let price = basePrice
+  const now = Date.now()
+
+  // 使用固定的种子生成可重复的数据
+  let seed = 12345
+
+  for (let i = count; i >= 0; i--) {
+    // 简单的伪随机数生成器
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff
+    const randomValue = (seed % 1000) / 1000 // 0-1之间的随机数
+
+    const change = (randomValue - 0.5) * 0.02
+    price = Math.max(0.01, Math.min(0.99, price + change))
+    const timestamp = now - i * interval
+    data.push({
+      timestamp: timestamp,
+      date: formatDateLabel(timestamp, interval),
+      price: Number(price.toFixed(3)),
+      volume: Math.floor(randomValue * 100000) + 10000
+    })
+  }
+
+  return data
+}
+
+// 初始化价格数据
+const priceData = ref([])
+
+// 初始化价格数据的函数
+const initializePriceData = () => {
+  priceData.value = generatePriceData(0.65, periodDataCount['1D'], periodInterval['1D'])
+  console.log('[PriceChart] 初始化价格数据，数据点数量:', priceData.value.length)
+  console.log('[PriceChart] 当前价格:', priceData.value[priceData.value.length - 1]?.price)
+}
 
 const priceChange = computed(() => {
   if (priceData.value.length < 2) return 0
@@ -335,15 +350,53 @@ const getChartOption = () => {
 
 const initChart = () => {
   if (!chartContainer.value) {
+    console.error('[PriceChart] chartContainer 为 null，无法初始化图表')
     return
   }
 
   try {
+    // 如果已有实例，先销毁
+    if (chartInstance.value) {
+      console.log('[PriceChart] 销毁旧的 ECharts 实例')
+      chartInstance.value.dispose()
+      chartInstance.value = null
+    }
+
+    console.log('[PriceChart] 开始初始化 ECharts 实例...')
+
+    // 检查数据
+    if (!priceData.value || priceData.value.length === 0) {
+      console.error('[PriceChart] 价格数据为空，无法初始化图表')
+      return
+    }
+    console.log('[PriceChart] 价格数据点数量:', priceData.value.length)
+
+    // 初始化 ECharts
     chartInstance.value = echarts.init(chartContainer.value)
-    chartInstance.value.setOption(getChartOption())
+    console.log('[PriceChart] ECharts 实例已创建')
+
+    // 生成配置
+    const option = getChartOption()
+    console.log('[PriceChart] 图表配置已生成, series数量:', option.series?.length)
+
+    // 设置配置
+    chartInstance.value.setOption(option, true) // true 表示不合并，完全重置
+    console.log('[PriceChart] 图表已渲染')
+
     isChartInitialized.value = true
   } catch (error) {
-    // Error handling
+    console.error('[PriceChart] 初始化图表失败:', error)
+    console.error('[PriceChart] 错误堆栈:', error.stack)
+
+    // 清理失败的实例
+    if (chartInstance.value) {
+      try {
+        chartInstance.value.dispose()
+      } catch (e) {
+        // ignore
+      }
+      chartInstance.value = null
+    }
   }
 }
 
@@ -408,14 +461,45 @@ const startRealtimeUpdates = () => {
 }
 
 onMounted(() => {
+  console.log('[PriceChart] 组件已挂载, marketId:', props.marketId)
+
+  // 初始化价格数据
+  initializePriceData()
+
+  // 使用 nextTick 确保 DOM 已渲染，然后多次尝试初始化
   nextTick(() => {
-    setTimeout(() => {
+    const tryInitChart = (attempts = 0) => {
+      console.log(`[PriceChart] 尝试初始化图表 (第 ${attempts + 1} 次)...`)
+      console.log('[PriceChart] chartContainer.value:', chartContainer.value)
+
       if (chartContainer.value) {
-        initChart()
-        startRealtimeUpdates()
-        window.addEventListener('resize', handleResize)
+        // 检查容器是否有尺寸
+        const rect = chartContainer.value.getBoundingClientRect()
+        console.log('[PriceChart] 容器尺寸:', { width: rect.width, height: rect.height })
+
+        if (rect.width > 0 && rect.height > 0) {
+          initChart()
+          startRealtimeUpdates()
+          window.addEventListener('resize', handleResize)
+          console.log('[PriceChart] ✅ 图表初始化成功')
+        } else {
+          console.warn('[PriceChart] ⚠️ 容器尺寸为 0，延迟初始化')
+          if (attempts < 5) {
+            setTimeout(() => tryInitChart(attempts + 1), 200)
+          } else {
+            console.error('[PriceChart] ❌ 多次尝试后仍无法初始化图表')
+          }
+        }
+      } else {
+        console.error('[PriceChart] ❌ chartContainer.value 为 null')
+        if (attempts < 5) {
+          setTimeout(() => tryInitChart(attempts + 1), 200)
+        }
       }
-    }, 100)
+    }
+
+    // 首次尝试延迟执行，确保父组件布局完成
+    setTimeout(() => tryInitChart(0), 300)
   })
 })
 

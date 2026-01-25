@@ -46,4 +46,13 @@
     WHERE market_id = #{marketId}
   </update>
 
+  <!-- 更新市场价格 -->
+  <update id="updatePrice">
+    UPDATE market
+    SET yes_price = #{yesPrice},
+        no_price = #{noPrice},
+        updated_time = NOW()
+    WHERE market_address = #{marketAddress}
+  </update>
+
 </mapper>

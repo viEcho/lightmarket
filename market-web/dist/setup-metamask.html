@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置 MetaMask 网络</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        .network-info {
+            background: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .network-info code {
+            background: #e0f2fe;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.9em;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px 10px 10px 0;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .steps {
+            background: #fef3c7;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .steps ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .steps li {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .status.info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🦊 配置 MetaMask 连接到 Hardhat 本地网络</h1>
+
+        <div class="network-info">
+            <strong>网络配置信息：</strong><br>
+            网络名称: Localhost 8545<br>
+            RPC URL: <code>http://127.0.0.1:8545</code><br>
+            Chain ID: <code>31337</code><br>
+            Currency Symbol: <code>ETH</code>
+        </div>
+
+        <button onclick="addNetwork()">🔗 一键添加网络到 MetaMask</button>
+        <button onclick="checkConnection()">✅ 检查连接状态</button>
+
+        <div id="status" class="status info">点击按钮开始配置...</div>
+
+        <div class="steps">
+            <strong>手动配置步骤（如果一键配置失败）：</strong>
+            <ol>
+                <li>打开 MetaMask，点击顶部的网络下拉菜单</li>
+                <li>点击"添加网络"或"自定义RPC"</li>
+                <li>填写以下信息：
+                    <ul>
+                        <li>网络名称: Localhost 8545</li>
+                        <li>RPC URL: http://127.0.0.1:8545</li>
+                        <li>Chain ID: 31337</li>
+                        <li>货币符号: ETH</li>
+                    </ul>
+                </li>
+                <li>点击"保存"</li>
+                <li>在 MetaMask 中切换到这个网络</li>
+                <li>导入测试账户（使用私钥或创建新账户）</li>
+            </ol>
+        </div>
+
+        <div class="steps">
+            <strong>常用测试账户私钥（Hardhat 默认）：</strong>
+            <ul>
+                <li>账户 #0: <code>0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80</code> (1,010,000 USDC)</li>
+                <li>账户 #1: <code>0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d</code> (10,000 USDC)</li>
+                <li>账户 #2: <code>0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a</code> (10,000 USDC)</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        async function addNetwork() {
+            const status = document.getElementById('status');
+
+            try {
+                status.className = 'status info';
+                status.textContent = '正在添加网络...';
+
+                const result = await window.ethereum.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [{
+                        chainId: '0x7a69', // 31337 的十六进制
+                        chainName: 'Localhost 8545',
+                        nativeCurrency: {
+                            name: 'ETH',
+                            symbol: 'ETH',
+                            decimals: 18
+                        },
+                        rpcUrls: ['http://127.0.0.1:8545'],
+                        blockExplorerUrls: null
+                    }]
+                });
+
+                status.className = 'status success';
+                status.textContent = '✅ 网络添加成功！请在 MetaMask 中切换到 "Localhost 8545" 网络';
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ 添加网络失败: ' + error.message;
+                console.error('Error:', error);
+            }
+        }
+
+        async function checkConnection() {
+            const status = document.getElementById('status');
+
+            try {
+                if (typeof window.ethereum === 'undefined') {
+                    status.className = 'status error';
+                    status.textContent = '❌ 未检测到 MetaMask，请先安装 MetaMask';
+                    return;
+                }
+
+                status.className = 'status info';
+                status.textContent = '正在检查连接...';
+
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+
+                let message = '当前状态:\n';
+                message += `Chain ID: ${chainId} (十进制: ${parseInt(chainId, 16)})\n`;
+
+                if (parseInt(chainId, 16) === 31337) {
+                    message += '✅ 已连接到正确的 Hardhat 网络\n';
+                } else {
+                    message += '❌ 未连接到 Hardhat 网络 (需要 Chain ID: 31337)\n';
+                }
+
+                if (accounts.length > 0) {
+                    message += `✅ 已连接账户: ${accounts[0]}\n`;
+                } else {
+                    message += '⚠️ 未连接任何账户\n';
+                }
+
+                status.className = parseInt(chainId, 16) === 31337 ? 'status success' : 'status error';
+                status.textContent = message;
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ 检查失败: ' + error.message;
+                console.error('Error:', error);
+            }
+        }
+
+        // 监听账户变化
+        if (typeof window.ethereum !== 'undefined') {
+            window.ethereum.on('accountsChanged', (accounts) => {
+                console.log('账户变化:', accounts);
+            });
+
+            window.ethereum.on('chainChanged', (chainId) => {
+                console.log('网络变化:', chainId);
+                location.reload();
+            });
+        }
+    </script>
+</body>
+</html>

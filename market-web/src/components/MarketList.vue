@@ -49,9 +49,8 @@ const handleMarketClick = (marketId) => {
 <style scoped>
 .market-list {
   width: 100%;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+  /* 移除 flex: 1，让内容自然撑开 */
+  display: block;
 }
 
 .markets-grid {
